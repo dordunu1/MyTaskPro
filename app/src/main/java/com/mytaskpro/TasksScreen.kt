@@ -265,6 +265,16 @@ fun TaskItem(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+                // Add this block to show the reminder icon
+                if (task.reminderTime != null) {
+                    Icon(
+                        imageVector = Icons.Default.Alarm,
+                        contentDescription = "Reminder set",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 Column(
                     horizontalAlignment = Alignment.End
                 ) {
