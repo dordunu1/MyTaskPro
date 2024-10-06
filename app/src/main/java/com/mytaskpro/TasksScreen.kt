@@ -168,8 +168,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 showAddTaskDialog = false
                 selectedCategory = null
             },
-            onTaskAdded = { title, description, dueDate, reminderTime ->
-                viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime)
+            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate ->
+                viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime, notifyOnDueDate)
                 showAddTaskDialog = false
                 selectedCategory = null
             }
@@ -187,7 +187,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                     updatedTask.description,
                     updatedTask.category,
                     updatedTask.dueDate,
-                    updatedTask.reminderTime
+                    updatedTask.reminderTime,
+                    updatedTask.notifyOnDueDate
                 )
                 editingTask = null
             }

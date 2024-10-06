@@ -15,5 +15,6 @@ data class Task(
     val isCompleted: Boolean = false,
     val isSnoozed: Boolean = false,
     val snoozeCount: Int = 0,
-    val showSnoozeOptions: Boolean = false  // Add this line
+    val showSnoozeOptions: Boolean = false,
+    val notifyOnDueDate: Boolean = true  // Add this line
 )

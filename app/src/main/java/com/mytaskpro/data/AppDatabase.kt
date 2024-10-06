@@ -1,6 +1,5 @@
 package com.mytaskpro.data
 
-
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
@@ -9,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class], version = 4)
+@Database(entities = [Task::class, Note::class], version = 6) // Update version to 6
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
@@ -26,7 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_4_6)
                     .build()
                 INSTANCE = instance
                 instance
@@ -61,6 +60,24 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE Note RENAME COLUMN pdfUri TO pdfUris")
                 // Update existing pdfUris to be a JSON array if not null
                 database.execSQL("UPDATE Note SET pdfUris = '[' || pdfUris || ']' WHERE pdfUris IS NOT NULL")
+            }
+        }
+
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add notifyOnDueDate column to Task table
+                database.execSQL("ALTER TABLE tasks ADD COLUMN notifyOnDueDate INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        private val MIGRATION_4_6 = object : Migration(4, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Perform MIGRATION_4_5 steps
+                database.execSQL("ALTER TABLE Note RENAME COLUMN pdfUri TO pdfUris")
+                database.execSQL("UPDATE Note SET pdfUris = '[' || pdfUris || ']' WHERE pdfUris IS NOT NULL")
+
+                // Perform MIGRATION_5_6 steps
+                database.execSQL("ALTER TABLE tasks ADD COLUMN notifyOnDueDate INTEGER NOT NULL DEFAULT 1")
             }
         }
     }

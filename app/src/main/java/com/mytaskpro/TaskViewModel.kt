@@ -126,7 +126,7 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?) {
+    fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean) {
         viewModelScope.launch {
             try {
                 val newTask = Task(
@@ -134,7 +134,8 @@ class TaskViewModel @Inject constructor(
                     description = description,
                     category = category,
                     dueDate = dueDate,
-                    reminderTime = reminderTime
+                    reminderTime = reminderTime,
+                    notifyOnDueDate = notifyOnDueDate
                 )
                 val insertedId = taskDao.insertTask(newTask)
                 Log.d("TaskViewModel", "Task created with ID: $insertedId")
@@ -143,7 +144,7 @@ class TaskViewModel @Inject constructor(
                 if (insertedTask != null) {
                     Log.d("TaskViewModel", "Retrieved task after insertion: $insertedTask")
                     _taskAdditionStatus.value = TaskAdditionStatus.Success
-                    scheduleReminder(insertedTask)
+                    scheduleNotifications(insertedTask)
                 } else {
                     Log.e("TaskViewModel", "Failed to retrieve inserted task")
                     _taskAdditionStatus.value = TaskAdditionStatus.Error
@@ -155,11 +156,23 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun updateTask(taskId: Int, title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?) {
+    fun updateTask(taskId: Int, title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean) {
         viewModelScope.launch {
-            val updatedTask = Task(taskId, title, description, category, dueDate, reminderTime)
+            val updatedTask = Task(taskId, title, description, category, dueDate, reminderTime, notifyOnDueDate = notifyOnDueDate)
             taskDao.updateTask(updatedTask)
-            scheduleReminder(updatedTask)
+            scheduleNotifications(updatedTask)
+        }
+    }
+
+    private fun scheduleNotifications(task: Task) {
+        // Schedule reminder notification
+        if (task.reminderTime != null) {
+            scheduleNotification(task, task.reminderTime, isReminder = true)
+        }
+
+        // Schedule due date notification
+        if (task.notifyOnDueDate) {
+            scheduleNotification(task, task.dueDate, isReminder = false)
         }
     }
 
@@ -167,7 +180,7 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             taskDao.updateReminderTime(taskId, newReminderTime)
             val updatedTask = taskDao.getTaskById(taskId)
-            updatedTask?.let { scheduleReminder(it) }
+            updatedTask?.let { scheduleNotifications(it) }
         }
     }
 
@@ -192,7 +205,7 @@ class TaskViewModel @Inject constructor(
                 snoozeCount = task.snoozeCount + 1
             )
             taskDao.updateTask(updatedTask)
-            scheduleReminder(updatedTask)
+            scheduleNotifications(updatedTask)
             Log.d("TaskViewModel", "Task snoozed: ${task.title}, New due date: $newDueDate")
         }
     }
@@ -213,7 +226,7 @@ class TaskViewModel @Inject constructor(
                     )
                     taskDao.updateTask(updatedTask)
                     Log.d("TaskViewModel", "Task updated: $updatedTask")
-                    scheduleReminder(updatedTask)
+                    scheduleNotifications(updatedTask)
                 } else {
                     Log.e("TaskViewModel", "Task not found for id $taskId")
                 }
@@ -225,34 +238,39 @@ class TaskViewModel @Inject constructor(
 
     fun cancelReminder(taskId: Int) {
         workManager.cancelUniqueWork("reminder_$taskId")
+        workManager.cancelUniqueWork("due_date_$taskId")
         viewModelScope.launch {
             taskDao.cancelReminder(taskId)
         }
     }
 
-    private fun scheduleReminder(task: Task) {
+    private fun scheduleNotification(task: Task, notificationTime: Date, isReminder: Boolean) {
         val currentTime = System.currentTimeMillis()
-        val reminderTime = task.reminderTime?.time ?: return
-        val delay = reminderTime - currentTime
+        val delay = notificationTime.time - currentTime
 
         if (delay > 0) {
-            val reminderWorkRequest = OneTimeWorkRequestBuilder<ReminderWorker>()
+            val notificationType = if (isReminder) "reminder" else "due_date"
+            val workRequestBuilder = OneTimeWorkRequestBuilder<ReminderWorker>()
                 .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                 .setInputData(
                     workDataOf(
                         "taskId" to task.id,
                         "taskTitle" to task.title,
                         "taskDescription" to task.description,
+                        "isReminder" to isReminder,
                         "snoozeDuration" to (15 * 60 * 1000L) // Default 15 minutes snooze duration
                     )
                 )
-                .build()
+
+            val workRequest = workRequestBuilder.build()
 
             workManager.enqueueUniqueWork(
-                "reminder_${task.id}",
+                "${notificationType}_${task.id}",
                 ExistingWorkPolicy.REPLACE,
-                reminderWorkRequest
+                workRequest
             )
+
+            Log.d("TaskViewModel", "Scheduled $notificationType notification for task ${task.id} at ${notificationTime}")
         }
     }
 

@@ -20,7 +20,7 @@ import com.mytaskpro.ui.StableTimePickerDialog
 fun AddTaskDialog(
     category: CategoryType,
     onDismiss: () -> Unit,
-    onTaskAdded: (String, String, Date, Date?) -> Unit
+    onTaskAdded: (String, String, Date, Date?, Boolean) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -29,6 +29,7 @@ fun AddTaskDialog(
     var reminderDate by remember { mutableStateOf(LocalDate.now()) }
     var reminderTime by remember { mutableStateOf(LocalTime.now()) }
     var isReminderSet by remember { mutableStateOf(false) }
+    var notifyOnDueDate by remember { mutableStateOf(true) }
 
     var showDueDatePicker by remember { mutableStateOf(false) }
     var showDueTimePicker by remember { mutableStateOf(false) }
@@ -79,6 +80,17 @@ fun AddTaskDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Checkbox(
+                        checked = notifyOnDueDate,
+                        onCheckedChange = { notifyOnDueDate = it }
+                    )
+                    Text("Notify on due date")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
                         checked = isReminderSet,
                         onCheckedChange = { isReminderSet = it }
                     )
@@ -114,7 +126,7 @@ fun AddTaskDialog(
                                 .toInstant()
                         )
                     } else null
-                    onTaskAdded(title, description, dueDatetime, reminderDatetime)
+                    onTaskAdded(title, description, dueDatetime, reminderDatetime, notifyOnDueDate)
                 },
                 enabled = title.isNotBlank()
             ) {
@@ -127,6 +139,7 @@ fun AddTaskDialog(
             }
         }
     )
+
 
     if (showDueDatePicker) {
         CustomDatePickerDialog(

@@ -33,6 +33,7 @@ fun EditTaskDialog(
     var isReminderSet by remember { mutableStateOf(task.reminderTime != null) }
     var reminderDate by remember { mutableStateOf(task.reminderTime?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate() ?: LocalDate.now()) }
     var reminderTime by remember { mutableStateOf(task.reminderTime?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalTime() ?: LocalTime.now()) }
+    var notifyOnDueDate by remember { mutableStateOf(task.notifyOnDueDate) }
 
     var showDueDatePicker by remember { mutableStateOf(false) }
     var showDueTimePicker by remember { mutableStateOf(false) }
@@ -46,7 +47,7 @@ fun EditTaskDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()) // Make the content scrollable
+                    .verticalScroll(rememberScrollState())
             ) {
                 OutlinedTextField(
                     value = title,
@@ -61,8 +62,8 @@ fun EditTaskDialog(
                     label = { Text("Description") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp), // Limit the height of the description field
-                    maxLines = 5 // Limit the number of visible lines
+                        .height(100.dp),
+                    maxLines = 5
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 CategorySelectionDropdown(
@@ -88,6 +89,17 @@ fun EditTaskDialog(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = notifyOnDueDate,
+                        onCheckedChange = { notifyOnDueDate = it }
+                    )
+                    Text("Notify on due date")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -98,6 +110,7 @@ fun EditTaskDialog(
                     Text("Set Reminder")
                 }
                 if (isReminderSet) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -127,7 +140,8 @@ fun EditTaskDialog(
                         description = description,
                         category = category,
                         dueDate = Date.from(dueDate.atTime(dueTime).atZone(ZoneId.systemDefault()).toInstant()),
-                        reminderTime = if (isReminderSet) Date.from(reminderDate.atTime(reminderTime).atZone(ZoneId.systemDefault()).toInstant()) else null
+                        reminderTime = if (isReminderSet) Date.from(reminderDate.atTime(reminderTime).atZone(ZoneId.systemDefault()).toInstant()) else null,
+                        notifyOnDueDate = notifyOnDueDate
                     )
                     onTaskEdited(updatedTask)
                 }
