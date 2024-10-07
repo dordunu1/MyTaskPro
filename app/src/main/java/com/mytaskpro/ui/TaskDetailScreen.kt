@@ -12,11 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mytaskpro.data.CategoryType
+import com.mytaskpro.data.RepetitiveTaskSettings
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.ui.theme.CustomDatePickerDialog
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.Date
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +43,7 @@ fun TaskDetailScreen(
         var reminderDate by remember { mutableStateOf(currentTask.reminderTime?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate() ?: LocalDate.now()) }
         var reminderTime by remember { mutableStateOf(currentTask.reminderTime?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalTime() ?: LocalTime.now()) }
         var notifyOnDueDate by remember { mutableStateOf(currentTask.notifyOnDueDate) }
+        var isCompleted by remember { mutableStateOf(currentTask.isCompleted) }
 
         var showDueDatePicker by remember { mutableStateOf(false) }
         var showDueTimePicker by remember { mutableStateOf(false) }
@@ -169,13 +173,18 @@ fun TaskDetailScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+                Text("Repetitive Settings", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                RepetitiveSettingsDisplay(currentTask.repetitiveSettings)
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Task completed?", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.width(8.dp))
                     Checkbox(
-                        checked = currentTask.isCompleted,
-                        onCheckedChange = { isCompleted ->
-                            viewModel.updateTaskCompletion(currentTask.id, isCompleted)
+                        checked = isCompleted,
+                        onCheckedChange = { newIsCompleted ->
+                            isCompleted = newIsCompleted
+                            viewModel.updateTaskCompletion(currentTask.id, newIsCompleted)
                         }
                     )
                 }
@@ -283,6 +292,42 @@ fun TaskDetailScreen(
             )
         }
     }
+}
+
+@Composable
+fun RepetitiveSettingsDisplay(repetitiveSettings: RepetitiveTaskSettings?) {
+    repetitiveSettings?.let { settings ->
+        Text("Repetition: ${settings.type.name}", style = MaterialTheme.typography.bodyMedium)
+        when (settings.type) {
+            RepetitionType.ONE_TIME -> {
+                Text("One-time task", style = MaterialTheme.typography.bodySmall)
+            }
+            RepetitionType.DAILY -> {
+                Text("Repeats every ${settings.interval} day(s)", style = MaterialTheme.typography.bodySmall)
+            }
+            RepetitionType.WEEKDAYS -> {
+                Text("Repeats on weekdays", style = MaterialTheme.typography.bodySmall)
+            }
+            RepetitionType.WEEKLY -> {
+                Text("Repeats every ${settings.interval} week(s) on: ${settings.weekDays.joinToString(", ") { getDayOfWeek(it + 1) }}", style = MaterialTheme.typography.bodySmall)
+            }
+            RepetitionType.MONTHLY -> {
+                if (settings.monthDay != null) {
+                    Text("Repeats every ${settings.interval} month(s) on day ${settings.monthDay}", style = MaterialTheme.typography.bodySmall)
+                } else if (settings.monthWeek != null && settings.monthWeekDay != null) {
+                    Text("Repeats every ${settings.interval} month(s) on the ${getOrdinal(settings.monthWeek)} ${getDayOfWeek(settings.monthWeekDay)}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            RepetitionType.YEARLY -> {
+                Text("Repeats every ${settings.interval} year(s)", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        when (settings.endOption) {
+            EndOption.NEVER -> Text("Repeats indefinitely", style = MaterialTheme.typography.bodySmall)
+            EndOption.BY_DATE -> Text("Until: ${settings.endDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)}", style = MaterialTheme.typography.bodySmall)
+            EndOption.AFTER_OCCURRENCES -> Text("For ${settings.endOccurrences} occurrences", style = MaterialTheme.typography.bodySmall)
+        }
+    } ?: Text("No repetitive settings", style = MaterialTheme.typography.bodyMedium)
 }
 
 @Composable
