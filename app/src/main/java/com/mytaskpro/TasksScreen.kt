@@ -2,7 +2,6 @@
 
 package com.mytaskpro.ui
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
@@ -33,6 +32,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
+import com.mytaskpro.data.RepetitiveTaskSettings
+
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -129,7 +130,6 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 onSortChanged = viewModel::updateSortOption
             )
 
-            // Replace the existing LazyColumn with this new one
             LazyColumn(
                 state = rememberLazyListState(),
                 modifier = Modifier.weight(1f),
@@ -149,7 +149,6 @@ fun TasksScreen(viewModel: TaskViewModel) {
         }
     }
 
-    // Handle dialogs and other UI elements
     if (showCategorySelection) {
         CategorySelectionDialog(
             onDismiss = { showCategorySelection = false },
@@ -168,8 +167,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 showAddTaskDialog = false
                 selectedCategory = null
             },
-            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate ->
-                viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime, notifyOnDueDate)
+            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings: RepetitiveTaskSettings? ->
+                viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings)
                 showAddTaskDialog = false
                 selectedCategory = null
             }
@@ -188,7 +187,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                     updatedTask.category,
                     updatedTask.dueDate,
                     updatedTask.reminderTime,
-                    updatedTask.notifyOnDueDate
+                    updatedTask.notifyOnDueDate,
+                    updatedTask.repetitiveSettings
                 )
                 editingTask = null
             }
@@ -266,7 +266,6 @@ fun TaskItem(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                // Add this block to show the reminder icon
                 if (task.reminderTime != null) {
                     Icon(
                         imageVector = Icons.Default.Alarm,
@@ -551,4 +550,3 @@ fun SortDropdown(
         }
     }
 }
-

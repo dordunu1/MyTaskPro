@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class], version = 6) // Update version to 6
+@Database(entities = [Task::class, Note::class], version = 7) // Update version to 7
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
@@ -25,12 +25,13 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_4_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_4_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
+
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -80,5 +81,12 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE tasks ADD COLUMN notifyOnDueDate INTEGER NOT NULL DEFAULT 1")
             }
         }
+    }
+}
+
+      private val MIGRATION_6_7 = object : Migration(6, 7) {
+           override fun migrate(database: SupportSQLiteDatabase) {
+        // Add repetitiveSettings column to Task table
+        database.execSQL("ALTER TABLE tasks ADD COLUMN repetitiveSettings TEXT")
     }
 }

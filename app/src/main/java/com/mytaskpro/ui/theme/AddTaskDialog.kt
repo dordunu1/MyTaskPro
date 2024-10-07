@@ -14,13 +14,17 @@ import java.time.LocalTime
 import java.time.ZoneId
 import androidx.compose.runtime.LaunchedEffect
 import com.mytaskpro.ui.StableTimePickerDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.mytaskpro.data.RepetitiveTaskSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskDialog(
     category: CategoryType,
     onDismiss: () -> Unit,
-    onTaskAdded: (String, String, Date, Date?, Boolean) -> Unit
+    onTaskAdded: (String, String, Date, Date?, Boolean, RepetitiveTaskSettings?) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -35,10 +39,27 @@ fun AddTaskDialog(
     var showDueTimePicker by remember { mutableStateOf(false) }
     var showReminderDatePicker by remember { mutableStateOf(false) }
     var showReminderTimePicker by remember { mutableStateOf(false) }
+    var showRepetitiveTaskDialog by remember { mutableStateOf(false) }
+    var repetitiveTaskSettings by remember { mutableStateOf<RepetitiveTaskSettings?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Task ✅", color = VibrantBlue) },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Add Task ✅", color = VibrantBlue)
+                IconButton(onClick = { showRepetitiveTaskDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = "Set as repeating task",
+                        tint = if (repetitiveTaskSettings != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -126,7 +147,7 @@ fun AddTaskDialog(
                                 .toInstant()
                         )
                     } else null
-                    onTaskAdded(title, description, dueDatetime, reminderDatetime, notifyOnDueDate)
+                    onTaskAdded(title, description, dueDatetime, reminderDatetime, notifyOnDueDate, repetitiveTaskSettings)
                 },
                 enabled = title.isNotBlank()
             ) {
@@ -139,7 +160,6 @@ fun AddTaskDialog(
             }
         }
     )
-
 
     if (showDueDatePicker) {
         CustomDatePickerDialog(
@@ -179,6 +199,17 @@ fun AddTaskDialog(
             onTimeSelected = { selectedTime ->
                 reminderTime = selectedTime
                 showReminderTimePicker = false
+            }
+        )
+    }
+
+    if (showRepetitiveTaskDialog) {
+        RepetitiveTaskDialog(
+            isVisible = showRepetitiveTaskDialog,
+            onDismiss = { showRepetitiveTaskDialog = false },
+            onConfirm = { settings ->
+                repetitiveTaskSettings = settings
+                showRepetitiveTaskDialog = false
             }
         )
     }

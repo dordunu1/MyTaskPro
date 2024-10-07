@@ -14,6 +14,7 @@ import com.mytaskpro.StorageManager
 import com.mytaskpro.util.ReminderWorker
 import com.mytaskpro.data.NoteRepository
 import com.mytaskpro.data.TaskDao
+import com.mytaskpro.data.RepetitiveTaskSettings
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -22,9 +23,14 @@ import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.mytaskpro.viewmodel.TaskAdditionStatus
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.mytaskpro.ui.RepetitionType
+import com.mytaskpro.util.RepetitiveTaskWorker
+import java.time.ZoneId
+import java.util.Calendar
+
+
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -126,7 +132,7 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean) {
+    fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
         viewModelScope.launch {
             try {
                 val newTask = Task(
@@ -135,7 +141,8 @@ class TaskViewModel @Inject constructor(
                     category = category,
                     dueDate = dueDate,
                     reminderTime = reminderTime,
-                    notifyOnDueDate = notifyOnDueDate
+                    notifyOnDueDate = notifyOnDueDate,
+                    repetitiveSettings = repetitiveSettings
                 )
                 val insertedId = taskDao.insertTask(newTask)
                 Log.d("TaskViewModel", "Task created with ID: $insertedId")
@@ -145,6 +152,9 @@ class TaskViewModel @Inject constructor(
                     Log.d("TaskViewModel", "Retrieved task after insertion: $insertedTask")
                     _taskAdditionStatus.value = TaskAdditionStatus.Success
                     scheduleNotifications(insertedTask)
+                    if (repetitiveSettings != null) {
+                        scheduleRepetitiveTask(insertedTask)
+                    }
                 } else {
                     Log.e("TaskViewModel", "Failed to retrieve inserted task")
                     _taskAdditionStatus.value = TaskAdditionStatus.Error
@@ -156,11 +166,16 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun updateTask(taskId: Int, title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean) {
+    fun updateTask(taskId: Int, title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
         viewModelScope.launch {
-            val updatedTask = Task(taskId, title, description, category, dueDate, reminderTime, notifyOnDueDate = notifyOnDueDate)
+            val updatedTask = Task(taskId, title, description, category, dueDate, reminderTime, notifyOnDueDate = notifyOnDueDate, repetitiveSettings = repetitiveSettings)
             taskDao.updateTask(updatedTask)
             scheduleNotifications(updatedTask)
+            if (repetitiveSettings != null) {
+                scheduleRepetitiveTask(updatedTask)
+            } else {
+                cancelRepetitiveTask(taskId)
+            }
         }
     }
 
@@ -174,6 +189,78 @@ class TaskViewModel @Inject constructor(
         if (task.notifyOnDueDate) {
             scheduleNotification(task, task.dueDate, isReminder = false)
         }
+    }
+
+    fun scheduleRepetitiveTask(task: Task) {
+        val repetitiveSettings = task.repetitiveSettings ?: return
+        val workRequest = OneTimeWorkRequestBuilder<RepetitiveTaskWorker>()
+            .setInputData(workDataOf(
+                "taskId" to task.id,
+                "repetitionType" to repetitiveSettings.type.name,
+                "interval" to repetitiveSettings.interval,
+                "weekDays" to repetitiveSettings.weekDays.joinToString(","),
+                "monthDay" to (repetitiveSettings.monthDay ?: -1),
+                "monthWeek" to (repetitiveSettings.monthWeek ?: -1),
+                "monthWeekDay" to (repetitiveSettings.monthWeekDay ?: -1),
+                "endDate" to (repetitiveSettings.endDate ?: -1L)
+            ))
+            .setInitialDelay(calculateNextOccurrence(task), TimeUnit.MILLISECONDS)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "repetitive_task_${task.id}",
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
+    }
+
+    private fun cancelRepetitiveTask(taskId: Int) {
+        workManager.cancelUniqueWork("repetitive_task_$taskId")
+    }
+
+    private fun calculateNextOccurrence(task: Task): Long {
+        val repetitiveSettings = task.repetitiveSettings ?: return 24 * 60 * 60 * 1000L // Default to 24 hours if no settings
+
+        val calendar = Calendar.getInstance()
+        calendar.time = task.dueDate
+
+        when (repetitiveSettings.type) {
+            RepetitionType.DAILY -> {
+                calendar.add(Calendar.DAY_OF_YEAR, repetitiveSettings.interval)
+            }
+            RepetitionType.WEEKLY -> {
+                calendar.add(Calendar.WEEK_OF_YEAR, repetitiveSettings.interval)
+                if (repetitiveSettings.weekDays.isNotEmpty()) {
+                    while (!repetitiveSettings.weekDays.contains(calendar.get(Calendar.DAY_OF_WEEK))) {
+                        calendar.add(Calendar.DAY_OF_YEAR, 1)
+                    }
+                }
+            }
+            RepetitionType.MONTHLY -> {
+                calendar.add(Calendar.MONTH, repetitiveSettings.interval)
+                repetitiveSettings.monthDay?.let { day ->
+                    calendar.set(Calendar.DAY_OF_MONTH, day.coerceIn(1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH)))
+                }
+                if (repetitiveSettings.monthWeek != null && repetitiveSettings.monthWeekDay != null) {
+                    calendar.set(Calendar.DAY_OF_WEEK_IN_MONTH, repetitiveSettings.monthWeek)
+                    calendar.set(Calendar.DAY_OF_WEEK, repetitiveSettings.monthWeekDay)
+                }
+            }
+            RepetitionType.YEARLY -> {
+                calendar.add(Calendar.YEAR, repetitiveSettings.interval)
+            }
+            else -> return 24 * 60 * 60 * 1000L // Default to 24 hours for unsupported types
+        }
+
+        // Check if the calculated date is after the end date (if set)
+        repetitiveSettings.endDate?.let { endDate ->
+            val endDateMillis = endDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            if (calendar.timeInMillis > endDateMillis) {
+                return -1 // Indicate that no more occurrences should be scheduled
+            }
+        }
+
+        return calendar.timeInMillis - System.currentTimeMillis()
     }
 
     fun updateReminder(taskId: Int, newReminderTime: Date) {
@@ -279,6 +366,11 @@ class TaskViewModel @Inject constructor(
             val task = taskDao.getTaskById(taskId) ?: return@launch
             val updatedTask = task.copy(isCompleted = isCompleted)
             taskDao.updateTask(updatedTask)
+            if (isCompleted) {
+                cancelRepetitiveTask(taskId)
+            } else {
+                updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
+            }
         }
     }
 
@@ -288,6 +380,7 @@ class TaskViewModel @Inject constructor(
             if (task != null) {
                 taskDao.deleteTask(task)
                 workManager.cancelUniqueWork("reminder_$taskId")
+                cancelRepetitiveTask(taskId)
             } else {
                 Log.e("TaskViewModel", "Task not found for deletion: $taskId")
             }
@@ -381,6 +474,7 @@ class TaskViewModel @Inject constructor(
             }
         }
     }
+
     fun updateNote(note: Note) {
         viewModelScope.launch {
             try {

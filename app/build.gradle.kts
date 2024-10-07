@@ -77,6 +77,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.8.9")
     implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("io.coil-kt:coil-compose:2.2.2")
+    implementation ("androidx.work:work-runtime-ktx:2.8.1")
+
 
     // ML Kit for text recognition
     implementation("com.google.mlkit:text-recognition:16.0.0")

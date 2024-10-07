@@ -26,4 +26,14 @@ class Converters {
     fun fromList(list: List<String>): String {
         return Gson().toJson(list)
     }
+
+    @TypeConverter
+    fun fromRepetitiveTaskSettings(settings: RepetitiveTaskSettings?): String? {
+        return settings?.let { Gson().toJson(it) }
+    }
+
+    @TypeConverter
+    fun toRepetitiveTaskSettings(settingsString: String?): RepetitiveTaskSettings? {
+        return settingsString?.let { Gson().fromJson(it, RepetitiveTaskSettings::class.java) }
+    }
 }
