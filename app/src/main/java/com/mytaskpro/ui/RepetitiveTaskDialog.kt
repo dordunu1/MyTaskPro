@@ -189,7 +189,7 @@ fun WeekdaysRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChange
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        listOf("S", "M", "T", "W", "T", "F", "S").forEachIndexed { index, day ->
+        listOf( "M", "T", "W", "T", "F",).forEachIndexed { index, day ->
             DayToggleButton(
                 day = day,
                 isSelected = index in settings.weekDays,
@@ -230,6 +230,28 @@ fun DayToggleButton(
 @Composable
 fun WeeklyRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged: (RepetitiveTaskSettings) -> Unit) {
     IntervalSelector("Week", settings.interval) { onSettingsChanged(settings.copy(interval = it)) }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text("Repeat on:", style = MaterialTheme.typography.bodyMedium)
+    Spacer(modifier = Modifier.height(4.dp))
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        listOf("S", "M", "T", "W", "T", "F", "S").forEachIndexed { index, day ->
+            DayToggleButton(
+                day = day,
+                isSelected = index in settings.weekDays,
+                onToggle = {
+                    val newWeekDays = settings.weekDays.toMutableList()
+                    if (index in newWeekDays) newWeekDays.remove(index) else newWeekDays.add(index)
+                    onSettingsChanged(settings.copy(weekDays = newWeekDays))
+                }
+            )
+        }
+    }
 }
 
 @Composable
@@ -289,11 +311,11 @@ fun MonthlyRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged
                 selected = settings.monthWeek != null && settings.monthWeekDay != null,
                 onClick = { onSettingsChanged(settings.copy(monthDay = null, monthWeek = 1, monthWeekDay = 1)) }
             )
-            Text("Monthly - Nth Day of Week")
+            Text("Monthly - Day of Week")
             if (settings.monthWeek != null && settings.monthWeekDay != null) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 VerticalPickerString(
-                    items = listOf("First", "Second", "Third", "Fourth", "Last"),
+                    items = listOf("1st", "2nd", "3rd", "4th", "5th", "6th", "7th"),
                     selectedItem = getOrdinal(settings.monthWeek),
                     onItemSelected = { onSettingsChanged(settings.copy(monthWeek = getOrdinalIndex(it) + 1)) }
                 )
@@ -393,16 +415,6 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
     }
 }
 
-fun getOrdinal(n: Int): String {
-    return when (n) {
-        1 -> "First"
-        2 -> "Second"
-        3 -> "Third"
-        4 -> "Fourth"
-        5 -> "Last"
-        else -> "Invalid"
-    }
-}
 
 fun getOrdinalIndex(ordinal: String): Int {
     return when (ordinal) {

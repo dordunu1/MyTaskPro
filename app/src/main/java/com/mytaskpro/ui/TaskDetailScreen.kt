@@ -19,8 +19,6 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.Date
 
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
@@ -306,16 +304,17 @@ fun RepetitiveSettingsDisplay(repetitiveSettings: RepetitiveTaskSettings?) {
                 Text("Repeats every ${settings.interval} day(s)", style = MaterialTheme.typography.bodySmall)
             }
             RepetitionType.WEEKDAYS -> {
-                Text("Repeats on weekdays", style = MaterialTheme.typography.bodySmall)
+                Text("Repeats on weekdays (Mon, Tue, Wed, Thu, Fri)", style = MaterialTheme.typography.bodySmall)
             }
             RepetitionType.WEEKLY -> {
-                Text("Repeats every ${settings.interval} week(s) on: ${settings.weekDays.joinToString(", ") { getDayOfWeek(it + 1) }}", style = MaterialTheme.typography.bodySmall)
+                val weekDays = settings.weekDays.map { getDayOfWeekInitial(it + 1) }.joinToString(", ")
+                Text("Repeats every ${settings.interval} week(s) on: $weekDays", style = MaterialTheme.typography.bodySmall)
             }
             RepetitionType.MONTHLY -> {
                 if (settings.monthDay != null) {
                     Text("Repeats every ${settings.interval} month(s) on day ${settings.monthDay}", style = MaterialTheme.typography.bodySmall)
                 } else if (settings.monthWeek != null && settings.monthWeekDay != null) {
-                    Text("Repeats every ${settings.interval} month(s) on the ${getOrdinal(settings.monthWeek)} ${getDayOfWeek(settings.monthWeekDay)}", style = MaterialTheme.typography.bodySmall)
+                    Text("Repeats every ${settings.interval} month(s) on the ${getOrdinal(settings.monthWeek)} ${getDayOfWeekInitial(settings.monthWeekDay)}", style = MaterialTheme.typography.bodySmall)
                 }
             }
             RepetitionType.YEARLY -> {
@@ -369,5 +368,30 @@ fun CategorySelectionDropdown(
                 )
             }
         }
+    }
+}
+
+// Helper functions
+fun getOrdinal(n: Int): String {
+    return when (n) {
+        1 -> "First"
+        2 -> "Second"
+        3 -> "Third"
+        4 -> "Fourth"
+        5 -> "Last"
+        else -> "Invalid"
+    }
+}
+
+fun getDayOfWeekInitial(n: Int): String {
+    return when (n) {
+        1 -> "Sun"
+        2 -> "Mon"
+        3 -> "Tue"
+        4 -> "Wed"
+        5 -> "Thu"
+        6 -> "Fri"
+        7 -> "Sat"
+        else -> "Invalid"
     }
 }
