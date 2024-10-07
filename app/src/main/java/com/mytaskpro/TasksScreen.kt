@@ -3,7 +3,7 @@
 package com.mytaskpro.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,10 +30,7 @@ import com.mytaskpro.viewmodel.TaskViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
-import com.mytaskpro.data.RepetitiveTaskSettings
-
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -50,7 +47,11 @@ fun getColorForDueDate(dueDate: Date): Color {
 }
 
 @Composable
-fun TasksScreen(viewModel: TaskViewModel) {
+fun TasksScreen(
+    viewModel: TaskViewModel,
+    onTaskClick: (Int) -> Unit,
+    onEditTask: (Int) -> Unit // Add this new parameter
+) {
     val taskAdditionStatus by viewModel.taskAdditionStatus.collectAsState()
     val tasks by viewModel.filteredAndSortedTasks.collectAsState()
     val filterOption by viewModel.filterOption.collectAsState()
@@ -63,32 +64,6 @@ fun TasksScreen(viewModel: TaskViewModel) {
     var selectedCategory by remember { mutableStateOf<CategoryType?>(null) }
 
     val lazyListState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    var isScrolling by remember { mutableStateOf(false) }
-    var lastScrollPosition by remember { mutableStateOf(0f) }
-
-    remember {
-        object : FlingBehavior {
-            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-                isScrolling = true
-                lastScrollPosition = initialVelocity
-                return initialVelocity
-            }
-        }
-    }
-
-    LaunchedEffect(isScrolling) {
-        if (isScrolling) {
-            while (isScrolling) {
-                lazyListState.scrollBy(lastScrollPosition * 0.98f)
-                lastScrollPosition *= 0.98f
-                if (abs(lastScrollPosition) < 0.01f) {
-                    isScrolling = false
-                }
-                delay(16) // Approximately 60 FPS
-            }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -96,7 +71,7 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 title = { Text("✅ Tasks") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = White,
+                    titleContentColor = Color.White
                 )
             )
         },
@@ -131,9 +106,9 @@ fun TasksScreen(viewModel: TaskViewModel) {
             )
 
             LazyColumn(
-                state = rememberLazyListState(),
+                state = lazyListState,
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(
                     items = tasks,
@@ -142,7 +117,8 @@ fun TasksScreen(viewModel: TaskViewModel) {
                     TaskItem(
                         task = task,
                         viewModel = viewModel,
-                        onEditTask = { editingTask = it }
+                        onEditTask = { editingTask = it },
+                        onTaskClick = onTaskClick
                     )
                 }
             }
@@ -167,7 +143,7 @@ fun TasksScreen(viewModel: TaskViewModel) {
                 showAddTaskDialog = false
                 selectedCategory = null
             },
-            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings: RepetitiveTaskSettings? ->
+            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
                 viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings)
                 showAddTaskDialog = false
                 selectedCategory = null
@@ -175,30 +151,20 @@ fun TasksScreen(viewModel: TaskViewModel) {
         )
     }
 
-    editingTask?.let { task ->
-        EditTaskDialog(
-            task = task,
-            onDismiss = { editingTask = null },
-            onTaskEdited = { updatedTask ->
-                viewModel.updateTask(
-                    updatedTask.id,
-                    updatedTask.title,
-                    updatedTask.description,
-                    updatedTask.category,
-                    updatedTask.dueDate,
-                    updatedTask.reminderTime,
-                    updatedTask.notifyOnDueDate,
-                    updatedTask.repetitiveSettings
-                )
-                editingTask = null
-            }
-        )
+    LaunchedEffect(editingTask) {
+        editingTask?.let { task ->
+            onEditTask(task.id)
+            editingTask = null
+        }
     }
-
     LaunchedEffect(taskAdditionStatus) {
         when (taskAdditionStatus) {
             is TaskAdditionStatus.Success -> {
                 snackbarHostState.showSnackbar("Task added successfully")
+                viewModel.resetTaskAdditionStatus()
+            }
+            is TaskAdditionStatus.Error -> {
+                snackbarHostState.showSnackbar("Failed to add task")
                 viewModel.resetTaskAdditionStatus()
             }
             is TaskAdditionStatus.DuplicateTitle -> {
@@ -214,6 +180,7 @@ fun TasksScreen(viewModel: TaskViewModel) {
 fun TaskItem(
     task: Task,
     viewModel: TaskViewModel,
+    onTaskClick: (Int) -> Unit,
     onEditTask: (Task) -> Unit
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -222,7 +189,8 @@ fun TaskItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clip(MaterialTheme.shapes.medium),
+            .clip(MaterialTheme.shapes.medium)
+            .clickable { onTaskClick(task.id) },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (task.snoozeCount > 0)
@@ -350,103 +318,22 @@ fun TaskItem(
 }
 
 @Composable
-fun TaskDetails(task: Task) {
-    Column {
-        Text(
-            text = task.description,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Due: ${formatDate(task.dueDate)}",
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (task.reminderTime != null) {
-            Text(
-                text = "Reminder: ${formatDate(task.reminderTime)}",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    }
-}
-
-@Composable
-fun TaskHeader(
-    task: Task,
-    viewModel: TaskViewModel,
-    onEditTask: (Task) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(
-                task.category.icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                task.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = getColorForDueDate(task.dueDate),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (task.reminderTime != null) {
-                Icon(
-                    imageVector = Icons.Default.Alarm,
-                    contentDescription = "Reminder set",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-            IconButton(onClick = { onEditTask(task) }) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = "Edit Task"
-                )
-            }
-        }
-    }
-    if (task.snoozeCount > 0) {
-        Text(
-            text = "Snoozed ${task.snoozeCount}x",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Red,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-}
-
-@Composable
 fun SnoozeOptions(taskId: Int, viewModel: TaskViewModel) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        SnoozeButton("5m", TimeUnit.MINUTES.toMillis(5), taskId, viewModel)
-        SnoozeButton("15m", TimeUnit.MINUTES.toMillis(15), taskId, viewModel)
-        SnoozeButton("1h", TimeUnit.HOURS.toMillis(1), taskId, viewModel)
-        SnoozeButton("1d", TimeUnit.DAYS.toMillis(1), taskId, viewModel)
+        SnoozeButton("5m", 5, taskId, viewModel)
+        SnoozeButton("15m", 15, taskId, viewModel)
+        SnoozeButton("1h", 60, taskId, viewModel)
+        SnoozeButton("1d", 1440, taskId, viewModel)
     }
 }
 
 @Composable
-fun SnoozeButton(label: String, duration: Long, taskId: Int, viewModel: TaskViewModel) {
+fun SnoozeButton(label: String, durationInMinutes: Int, taskId: Int, viewModel: TaskViewModel) {
     Button(
-        onClick = { viewModel.snoozeTask(taskId, duration) },
+        onClick = { viewModel.snoozeTask(taskId, durationInMinutes.toLong() * 60 * 1000) },
         modifier = Modifier.padding(4.dp)
     ) {
         Text(label)

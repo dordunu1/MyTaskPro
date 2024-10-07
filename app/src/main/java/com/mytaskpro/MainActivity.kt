@@ -20,6 +20,7 @@ import com.mytaskpro.ui.MainScreen
 import com.mytaskpro.ui.theme.MyTaskProTheme
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
+import com.mytaskpro.ui.AppNavigation
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -45,7 +46,10 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun MyTaskProApp(themeViewModel: ThemeViewModel = viewModel()) {
+    fun MyTaskProApp(
+        themeViewModel: ThemeViewModel = viewModel(),
+        taskViewModel: TaskViewModel = viewModel()
+    ) {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
 
         MyTaskProTheme(appTheme = currentTheme) {
@@ -54,7 +58,7 @@ class MainActivity : ComponentActivity() {
                 color = MaterialTheme.colorScheme.background
             ) {
                 NotificationPermissionHandler()
-                MainScreen(
+                AppNavigation(
                     taskViewModel = taskViewModel,
                     themeViewModel = themeViewModel
                 )

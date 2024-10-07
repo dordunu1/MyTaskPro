@@ -71,6 +71,12 @@ class TaskViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    fun getTaskById(id: Int): Flow<Task?> {
+        return flow {
+            emit(taskDao.getTaskById(id))
+        }
+    }
+
     init {
         loadData()
         loadNotes()
@@ -78,7 +84,6 @@ class TaskViewModel @Inject constructor(
         observeTasks()
         observeNotes()
     }
-
     private fun observeTasks() {
         viewModelScope.launch {
             taskDao.getAllTasks().collect { taskList ->

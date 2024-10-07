@@ -78,6 +78,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("io.coil-kt:coil-compose:2.2.2")
     implementation ("androidx.work:work-runtime-ktx:2.8.1")
+    implementation ("androidx.navigation:navigation-compose:2.5.3")
+
 
 
     // ML Kit for text recognition

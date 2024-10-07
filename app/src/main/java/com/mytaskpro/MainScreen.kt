@@ -1,6 +1,5 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-
 package com.mytaskpro.ui
 
 import androidx.compose.foundation.layout.*
@@ -24,16 +23,22 @@ import androidx.navigation.navArgument
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.ui.components.ThemeSelectionDialog
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
+import com.mytaskpro.data.CategoryType
+import java.util.Date
 
 @ExperimentalMaterial3Api
 @Composable
 fun MainScreen(
+    navController: NavController,
     taskViewModel: TaskViewModel,
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    onTaskClick: (Int) -> Unit
 ) {
     val navController = rememberNavController()
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -105,8 +110,15 @@ fun MainScreen(
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Screen.Tasks.route) {
-                    TasksScreen(viewModel = taskViewModel)
+                    TasksScreen(
+                        viewModel = taskViewModel,
+                        onTaskClick = onTaskClick,  // Use the parameter passed to MainScreen
+                        onEditTask = { taskId ->
+                            navController.navigate("taskDetail/$taskId?edit=true")
+                        }
+                    )
                 }
+
                 composable(Screen.Notes.route) {
                     NotesScreen(viewModel = taskViewModel)
                 }
@@ -143,6 +155,7 @@ fun MainScreen(
                         navController = navController
                     )
                 }
+
             }
         }
 
@@ -177,22 +190,131 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Notes : Screen("notes", "Notes", Icons.Filled.Note)
     object EditTask : Screen("edit_task", "Edit Task", Icons.Filled.Edit)
     object EditNote : Screen("edit_note", "Edit Note", Icons.Filled.Edit)
+    object TaskDetail : Screen("task_detail", "Task Detail", Icons.Filled.Info)
 }
 
 @Composable
 fun EditTaskScreen(taskId: Int, viewModel: TaskViewModel, onNavigateBack: () -> Unit) {
-    // Implement your EditTaskScreen here
+    val task by viewModel.getTaskById(taskId).collectAsState(initial = null)
+
+    task?.let { nonNullTask ->
+        var title by remember { mutableStateOf(nonNullTask.title) }
+        var description by remember { mutableStateOf(nonNullTask.description) }
+        var dueDate by remember { mutableStateOf(nonNullTask.dueDate) }
+        var category by remember { mutableStateOf(nonNullTask.category) }
+        var expanded by remember { mutableStateOf(false) }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            TopAppBar(
+                title = { Text("Edit Task") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Title") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Due Date Picker
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Due Date: ${formatDate(dueDate)}")
+                IconButton(onClick = {
+                    // Show date picker dialog
+                    // Update dueDate when a new date is selected
+                }) {
+                    Icon(Icons.Filled.DateRange, contentDescription = "Select Due Date")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Category Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                TextField(
+                    value = category.displayName,
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier.menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    CategoryType.values().forEach { categoryOption ->
+                        DropdownMenuItem(
+                            text = { Text(categoryOption.displayName) },
+                            onClick = {
+                                category = categoryOption
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    viewModel.updateTask(
+                        taskId = taskId,
+                        title = title,
+                        description = description,
+                        category = category,
+                        dueDate = dueDate,
+                        notifyOnDueDate = nonNullTask.notifyOnDueDate,
+                        reminderTime = nonNullTask.reminderTime,
+                        repetitiveSettings = nonNullTask.repetitiveSettings
+                    )
+                    onNavigateBack()
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Save Changes")
+            }
+        }
+    } ?: run {
+        // Handle case when task is null
+        Text("Task not found")
+    }
 }
 
-@Composable
-fun EditNoteScreen(viewModel: TaskViewModel, noteId: Int, onNavigateBack: () -> Unit) {
-    // Implement your EditNoteScreen here
-}
+    @Composable
+    fun EditNoteScreen(viewModel: TaskViewModel, noteId: Int, onNavigateBack: () -> Unit) {
+        // Implement your EditNoteScreen here
+    }
 
-@Composable
-fun NoteDetailScreen(viewModel: TaskViewModel, noteId: Int, navController: NavController) {
-    // Implement your NoteDetailScreen here
-    // This screen should display the full details of a note, including images and PDFs
-    // You can use the noteId to fetch the note details from the viewModel
-}
+    @Composable
+    fun NoteDetailScreen(viewModel: TaskViewModel, noteId: Int, navController: NavController) {
+        // Implement your NoteDetailScreen here
+        // This screen should display the full details of a note, including images and PDFs
+        // You can use the noteId to fetch the note details from the viewModel
+    }
 
