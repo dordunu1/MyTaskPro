@@ -294,7 +294,15 @@ fun MonthlyRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = settings.monthDay != null,
-                onClick = { onSettingsChanged(settings.copy(monthDay = 1, monthWeek = null, monthWeekDay = null)) }
+                onClick = {
+                    onSettingsChanged(
+                        settings.copy(
+                            monthDay = 1,
+                            monthWeek = null,
+                            monthWeekDay = null
+                        )
+                    )
+                }
             )
             Text("Monthly - Day of Month")
             if (settings.monthDay != null) {
@@ -309,21 +317,61 @@ fun MonthlyRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = settings.monthWeek != null && settings.monthWeekDay != null,
-                onClick = { onSettingsChanged(settings.copy(monthDay = null, monthWeek = 1, monthWeekDay = 1)) }
+                onClick = {
+                    onSettingsChanged(
+                        settings.copy(
+                            monthDay = null,
+                            monthWeek = 1,
+                            monthWeekDay = 1
+                        )
+                    )
+                }
             )
             Text("Monthly - Day of Week")
             if (settings.monthWeek != null && settings.monthWeekDay != null) {
                 Spacer(modifier = Modifier.width(6.dp))
                 VerticalPickerString(
                     items = listOf("1st", "2nd", "3rd", "4th", "5th", "6th", "7th"),
-                    selectedItem = getOrdinal(settings.monthWeek),
-                    onItemSelected = { onSettingsChanged(settings.copy(monthWeek = getOrdinalIndex(it) + 1)) }
+                    selectedItem = when (settings.monthWeek) {
+                        1 -> "1st"
+                        2 -> "2nd"
+                        3 -> "3rd"
+                        4 -> "4th"
+                        5 -> "5th"
+                        6 -> "6th"
+                        7 -> "7th"
+                        else -> "1st" // Default to 1st if an unexpected value is encountered
+                    },
+                    onItemSelected = { selected ->
+                        val newMonthWeek = when (selected) {
+                            "1st" -> 1
+                            "2nd" -> 2
+                            "3rd" -> 3
+                            "4th" -> 4
+                            "5th" -> 5
+                            "6th" -> 6
+                            "7th" -> 7
+                            else -> 1 // Default to 1 if an unexpected value is selected
+                        }
+                        onSettingsChanged(settings.copy(monthWeek = newMonthWeek))
+                    }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 VerticalPickerString(
-                    items = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"),
+                    items = listOf(
+                        "Sunday",
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday"
+                    ),
                     selectedItem = getDayOfWeek(settings.monthWeekDay),
-                    onItemSelected = { onSettingsChanged(settings.copy(monthWeekDay = getDayOfWeekIndex(it) + 1)) }
+                    onItemSelected = { selected ->
+                        val newMonthWeekDay = getDayOfWeekIndex(selected) + 1
+                        onSettingsChanged(settings.copy(monthWeekDay = newMonthWeekDay))
+                    }
                 )
             }
         }
@@ -418,15 +466,16 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
 
 fun getOrdinalIndex(ordinal: String): Int {
     return when (ordinal) {
-        "First" -> 0
-        "Second" -> 1
-        "Third" -> 2
-        "Fourth" -> 3
-        "Last" -> 4
-        else -> 0
+        "1st" -> 1
+        "2nd" -> 2
+        "3rd" -> 3
+        "4th" -> 4
+        "5th" -> 5
+        "6th" -> 6
+        "7th" -> 7
+        else -> 1
     }
 }
-
 fun getDayOfWeek(n: Int): String {
     return when (n) {
         1 -> "Sunday"

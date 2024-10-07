@@ -374,12 +374,14 @@ fun CategorySelectionDropdown(
 // Helper functions
 fun getOrdinal(n: Int): String {
     return when (n) {
-        1 -> "First"
-        2 -> "Second"
-        3 -> "Third"
-        4 -> "Fourth"
-        5 -> "Last"
-        else -> "Invalid"
+        1 -> "1st"
+        2 -> "2nd"
+        3 -> "3rd"
+        4 -> "4th"
+        5 -> "5th"
+        6 -> "6th"
+        7 -> "7th"
+        else -> "1st"
     }
 }
 
