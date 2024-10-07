@@ -243,23 +243,16 @@ fun TaskItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Checkbox(
-                        checked = task.isCompleted,
-                        onCheckedChange = { isCompleted ->
-                            viewModel.updateTaskCompletion(task.id, isCompleted)
-                        }
-                    )
-                    IconButton(onClick = { onEditTask(task) }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Task")
+                Checkbox(
+                    checked = task.isCompleted,
+                    onCheckedChange = { isCompleted ->
+                        viewModel.updateTaskCompletion(task.id, isCompleted)
                     }
-                }
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Start
             ) {
                 IconButton(
                     onClick = {
@@ -275,15 +268,6 @@ fun TaskItem(
                         contentDescription = if (task.snoozeCount > 0) "Undo Snooze" else "Snooze",
                         tint = if (task.snoozeCount > 0) Color.Red else Color.Gray,
                         modifier = Modifier.size(24.dp)
-                    )
-                }
-                IconButton(
-                    onClick = { showDeleteConfirmation = true }
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete Task",
-                        tint = Color.Red
                     )
                 }
             }
