@@ -65,8 +65,8 @@ class TaskViewModel @Inject constructor(
             when (sort) {
                 SortOption.DUE_DATE -> a.dueDate.compareTo(b.dueDate)
                 SortOption.TITLE -> a.title.compareTo(b.title)
-                SortOption.COMPLETED -> compareValuesBy(a, b) { it.isCompleted }
-                SortOption.UNCOMPLETED -> compareValuesBy(a, b) { !it.isCompleted }
+                SortOption.COMPLETED -> compareValuesBy(b, a) { it.isCompleted } // Reverse order
+                SortOption.UNCOMPLETED -> compareValuesBy(a, b) { it.isCompleted } // Keep this order
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
