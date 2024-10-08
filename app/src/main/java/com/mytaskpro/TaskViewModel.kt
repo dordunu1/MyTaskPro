@@ -67,7 +67,7 @@ class TaskViewModel @Inject constructor(
                 is FilterOption.All -> true
                 is FilterOption.Category -> task.category == filter.category && !task.isCompleted
                 is FilterOption.Completed -> task.isCompleted
-                is FilterOption.CustomCategory -> task.category == filter.category && !task.isCompleted
+                is FilterOption.CustomCategory -> (task.category as? CategoryType.Custom)?.displayName == filter.category.displayName && !task.isCompleted
                 else -> true
             }
         }.sortedWith { a, b ->
@@ -79,6 +79,8 @@ class TaskViewModel @Inject constructor(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+
     fun getTaskById(id: Int): Flow<Task?> {
         return flow {
             emit(taskDao.getTaskById(id))

@@ -6,8 +6,11 @@ import java.lang.reflect.Type
 class CategoryTypeAdapter : JsonSerializer<CategoryType>, JsonDeserializer<CategoryType> {
     override fun serialize(src: CategoryType, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
         val jsonObject = JsonObject()
-        jsonObject.addProperty("type", src.javaClass.simpleName)
+        jsonObject.addProperty("type", src.type)
         jsonObject.addProperty("displayName", src.displayName)
+        if (src is CategoryType.Custom) {
+            jsonObject.addProperty("customDisplayName", src.displayName)
+        }
         return jsonObject
     }
 
@@ -25,9 +28,8 @@ class CategoryTypeAdapter : JsonSerializer<CategoryType>, JsonDeserializer<Categ
             "MINDFULNESS" -> CategoryType.MINDFULNESS
             "INVOICES" -> CategoryType.INVOICES
             "COMPLETED" -> CategoryType.COMPLETED
-            "UNKNOWN" -> CategoryType.UNKNOWN
-            "Custom" -> CategoryType.Custom(displayName ?: "Unknown")
-            else -> CategoryType.UNKNOWN
+            "CUSTOM" -> CategoryType.Custom(jsonObject.get("customDisplayName")?.asString ?: displayName ?: "Custom")
+            else -> CategoryType.Custom(displayName ?: "Custom")
         }
     }
 }

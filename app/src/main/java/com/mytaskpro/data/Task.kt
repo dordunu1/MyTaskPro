@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.util.Date
 
 @Entity(tableName = "tasks")
-@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class)
+@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class)
 data class Task(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
@@ -47,26 +47,23 @@ class CategoryTypeConverter {
 
     @TypeConverter
     fun fromCategoryType(value: CategoryType): String {
-        val json = gson.toJson(value)
-        Log.d("CategoryTypeConverter", "Converting CategoryType to String: $value -> $json")
-        return json
+        return gson.toJson(value)
     }
 
     @TypeConverter
     fun toCategoryType(value: String): CategoryType {
-        Log.d("CategoryTypeConverter", "Converting String to CategoryType: $value")
-        return try {
-            val jsonObject = JSONObject(value)
-            if (jsonObject.has("customDisplayName")) {
-                CategoryType.Custom(jsonObject.getString("customDisplayName"))
-            } else {
-                gson.fromJson(value, CategoryType::class.java)
-            }
-        } catch (e: Exception) {
-            Log.e("CategoryTypeConverter", "Error converting to CategoryType: ${e.message}")
-            CategoryType.UNKNOWN
-        }.also {
-            Log.d("CategoryTypeConverter", "Converted to CategoryType: $it")
-        }
+        return gson.fromJson(value, CategoryType::class.java)
+    }
+}
+
+class DateConverter {
+    @TypeConverter
+    fun fromTimestamp(value: Long?): Date? {
+        return value?.let { Date(it) }
+    }
+
+    @TypeConverter
+    fun dateToTimestamp(date: Date?): Long? {
+        return date?.time
     }
 }
