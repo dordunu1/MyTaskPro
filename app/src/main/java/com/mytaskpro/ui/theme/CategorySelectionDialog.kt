@@ -19,19 +19,21 @@ fun CategorySelectionDialog(
         title = { Text("Select Category") },
         text = {
             Column {
-                CategoryType.values().forEach { category ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onCategorySelected(category) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(category.icon, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(category.displayName)
+                CategoryType.values()
+                    .filter { it != CategoryType.COMPLETED } // Filter out COMPLETED
+                    .forEach { category ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onCategorySelected(category) }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(category.icon, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(category.displayName)
+                        }
                     }
-                }
             }
         },
         confirmButton = {},

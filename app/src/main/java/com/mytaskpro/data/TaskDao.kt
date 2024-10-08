@@ -9,7 +9,6 @@ interface TaskDao {
     @Query("SELECT * FROM tasks")
     fun getAllTasks(): Flow<List<Task>>
 
-
     @Query("SELECT * FROM tasks WHERE id = :taskId")
     suspend fun getTaskById(taskId: Int): Task?
 
@@ -31,7 +30,6 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE title = :title LIMIT 1")
     suspend fun getTaskByTitle(title: String): Task?
 
-    // New queries to support reminder management
     @Query("SELECT * FROM tasks WHERE reminderTime IS NOT NULL AND reminderTime > :currentTime")
     fun getUpcomingReminders(currentTime: Date): Flow<List<Task>>
 
@@ -40,4 +38,20 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET reminderTime = NULL WHERE id = :taskId")
     suspend fun cancelReminder(taskId: Int)
+
+    // Updated functions for handling completed tasks
+    @Query("UPDATE tasks SET isCompleted = 1, completionDate = :completionDate WHERE id = :taskId")
+    suspend fun markTaskAsCompleted(taskId: Int, completionDate: Date)
+
+    @Query("UPDATE tasks SET isCompleted = 0, completionDate = NULL WHERE id = :taskId")
+    suspend fun markTaskAsIncomplete(taskId: Int)
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 1")
+    fun getCompletedTaskCount(): Flow<Int>
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 1 ORDER BY CASE WHEN completionDate IS NULL THEN 1 ELSE 0 END, completionDate DESC")
+    fun getCompletedTasksSortedByDate(): Flow<List<Task>>
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 1 AND date(completionDate / 1000, 'unixepoch') = date(:date / 1000, 'unixepoch')")
+    fun getTasksCompletedOnDate(date: Date): Flow<List<Task>>
 }

@@ -17,6 +17,7 @@ data class Task(
     val dueDate: Date,
     val reminderTime: Date?,
     val isCompleted: Boolean = false,
+    val completionDate: Date? = null,  // Add this line
     val isSnoozed: Boolean = false,
     val snoozeCount: Int = 0,
     val showSnoozeOptions: Boolean = false,
@@ -24,7 +25,7 @@ data class Task(
     val repetitiveSettings: RepetitiveTaskSettings? = null
 )
 
-
+// Keep the RepetitiveTaskSettingsConverter class as is
 class RepetitiveTaskSettingsConverter {
     @TypeConverter
     fun fromRepetitiveTaskSettings(settings: RepetitiveTaskSettings?): String? {

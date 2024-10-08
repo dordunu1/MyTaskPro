@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class], version = 7) // Update version to 7
+@Database(entities = [Task::class, Note::class], version = 8) // Update version to 8
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
@@ -25,13 +25,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_4_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_4_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
-
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -48,45 +47,42 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Rename imageUri to imageUris and make it a List<String>
                 database.execSQL("ALTER TABLE Note RENAME COLUMN imageUri TO imageUris")
-                // Add new column for PDF URI
                 database.execSQL("ALTER TABLE Note ADD COLUMN pdfUri TEXT")
             }
         }
 
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Rename pdfUri to pdfUris and make it a List<String>
                 database.execSQL("ALTER TABLE Note RENAME COLUMN pdfUri TO pdfUris")
-                // Update existing pdfUris to be a JSON array if not null
                 database.execSQL("UPDATE Note SET pdfUris = '[' || pdfUris || ']' WHERE pdfUris IS NOT NULL")
             }
         }
 
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Add notifyOnDueDate column to Task table
                 database.execSQL("ALTER TABLE tasks ADD COLUMN notifyOnDueDate INTEGER NOT NULL DEFAULT 1")
             }
         }
 
         private val MIGRATION_4_6 = object : Migration(4, 6) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Perform MIGRATION_4_5 steps
                 database.execSQL("ALTER TABLE Note RENAME COLUMN pdfUri TO pdfUris")
                 database.execSQL("UPDATE Note SET pdfUris = '[' || pdfUris || ']' WHERE pdfUris IS NOT NULL")
-
-                // Perform MIGRATION_5_6 steps
                 database.execSQL("ALTER TABLE tasks ADD COLUMN notifyOnDueDate INTEGER NOT NULL DEFAULT 1")
             }
         }
-    }
-}
 
-      private val MIGRATION_6_7 = object : Migration(6, 7) {
-           override fun migrate(database: SupportSQLiteDatabase) {
-        // Add repetitiveSettings column to Task table
-        database.execSQL("ALTER TABLE tasks ADD COLUMN repetitiveSettings TEXT")
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE tasks ADD COLUMN repetitiveSettings TEXT")
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE tasks ADD COLUMN completionDate INTEGER")
+            }
+        }
     }
 }

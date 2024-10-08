@@ -24,13 +24,12 @@ import com.mytaskpro.R
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.Task
 import com.mytaskpro.ui.theme.*
+import com.mytaskpro.viewmodel.FilterOption
 import com.mytaskpro.viewmodel.SortOption
 import com.mytaskpro.viewmodel.TaskAdditionStatus
 import com.mytaskpro.viewmodel.TaskViewModel
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.abs
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -50,12 +49,13 @@ fun getColorForDueDate(dueDate: Date): Color {
 fun TasksScreen(
     viewModel: TaskViewModel,
     onTaskClick: (Int) -> Unit,
-    onEditTask: (Int) -> Unit // Add this new parameter
+    onEditTask: (Int) -> Unit
 ) {
     val taskAdditionStatus by viewModel.taskAdditionStatus.collectAsState()
     val tasks by viewModel.filteredAndSortedTasks.collectAsState()
     val filterOption by viewModel.filterOption.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
+    val completedTaskCount by viewModel.completedTaskCount.collectAsState(initial = 0)
 
     val snackbarHostState = remember { SnackbarHostState() }
     var editingTask by remember { mutableStateOf<Task?>(null) }
@@ -101,6 +101,7 @@ fun TasksScreen(
             FilterAndSortBar(
                 filterOption = filterOption,
                 sortOption = sortOption,
+                completedTaskCount = completedTaskCount,
                 onFilterChanged = viewModel::updateFilterOption,
                 onSortChanged = viewModel::updateSortOption
             )
@@ -159,15 +160,15 @@ fun TasksScreen(
     }
     LaunchedEffect(taskAdditionStatus) {
         when (taskAdditionStatus) {
-            is TaskAdditionStatus.Success -> {
+            TaskAdditionStatus.Success -> {
                 snackbarHostState.showSnackbar("Task added successfully")
                 viewModel.resetTaskAdditionStatus()
             }
-            is TaskAdditionStatus.Error -> {
+            TaskAdditionStatus.Error -> {
                 snackbarHostState.showSnackbar("Failed to add task")
                 viewModel.resetTaskAdditionStatus()
             }
-            is TaskAdditionStatus.DuplicateTitle -> {
+            TaskAdditionStatus.DuplicateTitle -> {
                 snackbarHostState.showSnackbar("A task with this title already exists")
                 viewModel.resetTaskAdditionStatus()
             }
@@ -326,9 +327,10 @@ fun SnoozeButton(label: String, durationInMinutes: Int, taskId: Int, viewModel: 
 
 @Composable
 fun FilterAndSortBar(
-    filterOption: CategoryType?,
+    filterOption: FilterOption,
     sortOption: SortOption,
-    onFilterChanged: (CategoryType?) -> Unit,
+    completedTaskCount: Int,
+    onFilterChanged: (FilterOption) -> Unit,
     onSortChanged: (SortOption) -> Unit
 ) {
     Row(
@@ -339,7 +341,8 @@ fun FilterAndSortBar(
     ) {
         FilterDropdown(
             selectedOption = filterOption,
-            onOptionSelected = onFilterChanged
+            onOptionSelected = onFilterChanged,
+            completedTaskCount = completedTaskCount
         )
         SortDropdown(
             selectedOption = sortOption,
@@ -350,8 +353,9 @@ fun FilterAndSortBar(
 
 @Composable
 fun FilterDropdown(
-    selectedOption: CategoryType?,
-    onOptionSelected: (CategoryType?) -> Unit
+    selectedOption: FilterOption,
+    onOptionSelected: (FilterOption) -> Unit,
+    completedTaskCount: Int
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -360,7 +364,14 @@ fun FilterDropdown(
             onClick = { expanded = true },
             colors = ButtonDefaults.textButtonColors(contentColor = VibrantBlue)
         ) {
-            Text("Filter: ${selectedOption?.displayName ?: "All"}")
+            Text("Filter: ${
+                when (selectedOption) {
+                    is FilterOption.All -> "All"
+                    is FilterOption.Category -> selectedOption.category.displayName
+                    is FilterOption.Completed -> "Completed"
+                    else -> "Unknown" // Add this else branch
+                }
+            }")
             Icon(Icons.Default.ArrowDropDown, "Expand")
         }
         DropdownMenu(
@@ -370,22 +381,34 @@ fun FilterDropdown(
             DropdownMenuItem(
                 text = { Text("All") },
                 onClick = {
-                    onOptionSelected(null)
+                    onOptionSelected(FilterOption.All)
                     expanded = false
                 }
             )
             CategoryType.values().forEach { category ->
-                DropdownMenuItem(
-                    text = { Text(category.displayName) },
-                    onClick = {
-                        onOptionSelected(category)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(category.icon, contentDescription = null)
-                    }
-                )
+                if (category != CategoryType.COMPLETED) {
+                    DropdownMenuItem(
+                        text = { Text(category.displayName) },
+                        onClick = {
+                            onOptionSelected(FilterOption.Category(category))
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(category.icon, contentDescription = null)
+                        }
+                    )
+                }
             }
+            DropdownMenuItem(
+                text = { Text("Completed ($completedTaskCount)") },
+                onClick = {
+                    onOptionSelected(FilterOption.Completed)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                }
+            )
         }
     }
 }
@@ -419,5 +442,18 @@ fun SortDropdown(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun CompletedTasksButton(
+    completedTaskCount: Int,
+    onClick: () -> Unit
+) {
+    TextButton(
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(contentColor = VibrantPurple)
+    ) {
+        Text("Completed: $completedTaskCount")
     }
 }

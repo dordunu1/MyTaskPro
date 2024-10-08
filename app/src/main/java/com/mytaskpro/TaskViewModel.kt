@@ -7,30 +7,22 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
-import com.mytaskpro.data.Note
-import com.mytaskpro.data.Task
-import com.mytaskpro.data.CategoryType
+import com.mytaskpro.data.*
 import com.mytaskpro.StorageManager
 import com.mytaskpro.util.ReminderWorker
-import com.mytaskpro.data.NoteRepository
-import com.mytaskpro.data.TaskDao
-import com.mytaskpro.data.RepetitiveTaskSettings
+import com.mytaskpro.util.RepetitiveTaskWorker
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Date
+import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.mytaskpro.ui.RepetitionType
-import com.mytaskpro.util.RepetitiveTaskWorker
 import java.time.ZoneId
-import java.util.Calendar
-
-
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -46,8 +38,8 @@ class TaskViewModel @Inject constructor(
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
     val notes: StateFlow<List<Note>> = _notes.asStateFlow()
 
-    private val _filterOption = MutableStateFlow<CategoryType?>(null)
-    val filterOption: StateFlow<CategoryType?> = _filterOption.asStateFlow()
+    private val _filterOption = MutableStateFlow<FilterOption>(FilterOption.All)
+    val filterOption: StateFlow<FilterOption> = _filterOption.asStateFlow()
 
     private val _sortOption = MutableStateFlow(SortOption.DUE_DATE)
     val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
@@ -58,15 +50,23 @@ class TaskViewModel @Inject constructor(
     private val _userPreferences = MutableStateFlow(UserPreferences())
     val userPreferences: StateFlow<UserPreferences> = _userPreferences.asStateFlow()
 
+    private val _completedTaskCount = MutableStateFlow(0)
+    val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
+
     val filteredAndSortedTasks = combine(_tasks, _filterOption, _sortOption) { tasks, filter, sort ->
         tasks.filter { task ->
-            filter == null || task.category == filter
+            when (filter) {
+                is FilterOption.All -> true
+                is FilterOption.Category -> task.category == filter.category && !task.isCompleted
+                is FilterOption.Completed -> task.isCompleted
+                else -> true // Add this else branch
+            }
         }.sortedWith { a, b ->
             when (sort) {
                 SortOption.DUE_DATE -> a.dueDate.compareTo(b.dueDate)
                 SortOption.TITLE -> a.title.compareTo(b.title)
-                SortOption.COMPLETED -> compareValuesBy(b, a) { it.isCompleted } // Reverse order
-                SortOption.UNCOMPLETED -> compareValuesBy(a, b) { it.isCompleted } // Keep this order
+                SortOption.COMPLETED -> compareValuesBy(b, a) { it.isCompleted }
+                SortOption.UNCOMPLETED -> compareValuesBy(a, b) { it.isCompleted }
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -88,9 +88,11 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             taskDao.getAllTasks().collect { taskList ->
                 _tasks.value = taskList
+                _completedTaskCount.value = taskList.count { it.isCompleted }
             }
         }
     }
+
 
     private fun observeNotes() {
         viewModelScope.launch {
@@ -137,6 +139,9 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun showCompletedTasks() {
+        _filterOption.value = FilterOption.Completed
+    }
     fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
         viewModelScope.launch {
             try {
@@ -373,8 +378,10 @@ class TaskViewModel @Inject constructor(
             taskDao.updateTask(updatedTask)
             if (isCompleted) {
                 cancelRepetitiveTask(taskId)
+                _completedTaskCount.value += 1
             } else {
                 updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
+                _completedTaskCount.value -= 1
             }
         }
     }
@@ -528,7 +535,7 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun updateFilterOption(option: CategoryType?) {
+    fun updateFilterOption(option: FilterOption) {
         _filterOption.value = option
     }
 
@@ -558,7 +565,14 @@ enum class SortOption(val displayName: String) {
     UNCOMPLETED("Uncompleted")
 }
 
+sealed class FilterOption {
+    object All : FilterOption()
+    data class Category(val category: CategoryType) : FilterOption()
+    object Completed : FilterOption()
+}
+
 data class UserPreferences(
     val defaultReminderTimeMinutes: Int = 15,
     val notificationSound: String = "default"
 )
+

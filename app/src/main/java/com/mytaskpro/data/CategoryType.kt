@@ -11,5 +11,6 @@ enum class CategoryType(val displayName: String, val icon: ImageVector) {
     CRYPTO("Crypto", Icons.Default.CurrencyBitcoin),
     HEALTH("Health", Icons.Default.Favorite),
     MINDFULNESS("Mindfulness", Icons.Default.SelfImprovement),
-    INVOICES("Invoices", Icons.Default.Receipt) // Added new category
+    INVOICES("Invoices", Icons.Default.Receipt),
+    COMPLETED("Completed", Icons.Default.CheckCircle)// Added new category
 }
