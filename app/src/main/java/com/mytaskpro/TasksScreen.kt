@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -30,11 +31,6 @@ import com.mytaskpro.viewmodel.TaskAdditionStatus
 import com.mytaskpro.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import com.mytaskpro.data.CategoryType.Custom
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.material.icons.filled.ArrowDropDown
-import com.mytaskpro.ui.theme.VibrantGreen
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -222,12 +218,23 @@ fun TaskItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    task.category.icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
+                when (task.category) {
+                    is CategoryType.Custom -> {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(task.category.color, CircleShape)
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            task.category.icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -370,101 +377,6 @@ fun FilterAndSortBar(
 fun FilterDropdown(
     selectedOption: FilterOption,
     onOptionSelected: (FilterOption) -> Unit,
-    completedTaskCount: Int
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box {
-        TextButton(
-            onClick = { expanded = true },
-            colors = ButtonDefaults.textButtonColors(contentColor = VibrantBlue)
-        ) {
-            Text("Filter: ${
-                when (selectedOption) {
-                    is FilterOption.All -> "All"
-                    is FilterOption.Category -> selectedOption.category.displayName
-                    is FilterOption.Completed -> "Completed"
-                    else -> "Unknown" // Add this else branch
-                }
-            }")
-            Icon(Icons.Default.ArrowDropDown, "Expand")
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("All") },
-                onClick = {
-                    onOptionSelected(FilterOption.All)
-                    expanded = false
-                }
-            )
-            CategoryType.values().forEach { category ->
-                if (category != CategoryType.COMPLETED) {
-                    DropdownMenuItem(
-                        text = { Text(category.displayName) },
-                        onClick = {
-                            onOptionSelected(FilterOption.Category(category))
-                            expanded = false
-                        },
-                        leadingIcon = {
-                            Icon(category.icon, contentDescription = null)
-                        }
-                    )
-                }
-            }
-            DropdownMenuItem(
-                text = { Text("Completed ($completedTaskCount)") },
-                onClick = {
-                    onOptionSelected(FilterOption.Completed)
-                    expanded = false
-                },
-                leadingIcon = {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null)
-                }
-            )
-        }
-    }
-}
-
-
-@Composable
-fun SortDropdown(
-    selectedOption: SortOption,
-    onOptionSelected: (SortOption) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box {
-        TextButton(
-            onClick = { expanded = true },
-            colors = ButtonDefaults.textButtonColors(contentColor = VibrantGreen)
-        ) {
-            Text("Sort: ${selectedOption.displayName}")
-            Icon(Icons.Default.ArrowDropDown, "Expand")
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            SortOption.values().forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.displayName) },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun FilterDropdown(
-    selectedOption: FilterOption,
-    onOptionSelected: (FilterOption) -> Unit,
     completedTaskCount: Int,
     customCategories: List<CategoryType.Custom>
 ) {
@@ -519,7 +431,11 @@ fun FilterDropdown(
                         expanded = false
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.Label, contentDescription = null)
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(category.color, CircleShape)
+                        )
                     }
                 )
             }
@@ -537,15 +453,35 @@ fun FilterDropdown(
     }
 }
 
+
 @Composable
-fun CompletedTasksButton(
-    completedTaskCount: Int,
-    onClick: () -> Unit
+fun SortDropdown(
+    selectedOption: SortOption,
+    onOptionSelected: (SortOption) -> Unit
 ) {
-    TextButton(
-        onClick = onClick,
-        colors = ButtonDefaults.textButtonColors(contentColor = VibrantPurple)
-    ) {
-        Text("Completed: $completedTaskCount")
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            colors = ButtonDefaults.textButtonColors(contentColor = VibrantGreen)
+        ) {
+            Text("Sort: ${selectedOption.displayName}")
+            Icon(Icons.Default.ArrowDropDown, "Expand")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            SortOption.values().forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.displayName) },
+                    onClick = {
+                        onOptionSelected(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
     }
 }
