@@ -104,8 +104,7 @@ fun TaskDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(currentTask.description, style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Category: ${currentTask.category.name}", style = MaterialTheme.typography.bodyMedium)
-                }
+                    Text("Category: ${currentTask.category.displayName}", style = MaterialTheme.typography.bodyMedium)                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

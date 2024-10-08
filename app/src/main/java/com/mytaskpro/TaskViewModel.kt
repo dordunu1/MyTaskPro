@@ -23,6 +23,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.mytaskpro.ui.RepetitionType
 import java.time.ZoneId
+import com.google.gson.GsonBuilder
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -53,13 +54,21 @@ class TaskViewModel @Inject constructor(
     private val _completedTaskCount = MutableStateFlow(0)
     val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
 
-    val filteredAndSortedTasks = combine(_tasks, _filterOption, _sortOption) { tasks, filter, sort ->
+    private val _customCategories = MutableStateFlow<List<CategoryType.Custom>>(emptyList())
+    val customCategories: StateFlow<List<CategoryType.Custom>> = _customCategories.asStateFlow()
+
+    private val gson: Gson = GsonBuilder()
+        .registerTypeAdapter(CategoryType::class.java, CategoryTypeAdapter())
+        .create()
+
+    val filteredAndSortedTasks = combine(_tasks, _filterOption, _sortOption, _customCategories) { tasks, filter, sort, customCategories ->
         tasks.filter { task ->
             when (filter) {
                 is FilterOption.All -> true
                 is FilterOption.Category -> task.category == filter.category && !task.isCompleted
                 is FilterOption.Completed -> task.isCompleted
-                else -> true // Add this else branch
+                is FilterOption.CustomCategory -> task.category == filter.category && !task.isCompleted
+                else -> true
             }
         }.sortedWith { a, b ->
             when (sort) {
@@ -70,10 +79,35 @@ class TaskViewModel @Inject constructor(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
     fun getTaskById(id: Int): Flow<Task?> {
         return flow {
             emit(taskDao.getTaskById(id))
+        }
+    }
+
+    fun createCustomCategory(name: String) {
+        val newCategory = CategoryType.Custom(name)
+        _customCategories.value = _customCategories.value + newCategory
+        saveCustomCategories()
+    }
+
+    private fun saveCustomCategories() {
+        viewModelScope.launch {
+            val customCategoriesJson = gson.toJson(_customCategories.value)
+            context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("customCategories", customCategoriesJson)
+                .apply()
+        }
+    }
+
+    private fun loadCustomCategories() {
+        val sharedPrefs = context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+        val customCategoriesJson = sharedPrefs.getString("customCategories", null)
+        if (customCategoriesJson != null) {
+            val type = object : TypeToken<List<CategoryType.Custom>>() {}.type
+            val loadedCategories = gson.fromJson<List<CategoryType.Custom>>(customCategoriesJson, type)
+            _customCategories.value = loadedCategories
         }
     }
 
@@ -81,6 +115,7 @@ class TaskViewModel @Inject constructor(
         loadData()
         loadNotes()
         loadUserPreferences()
+        loadCustomCategories()
         observeTasks()
         observeNotes()
     }
@@ -145,6 +180,7 @@ class TaskViewModel @Inject constructor(
     fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
         viewModelScope.launch {
             try {
+                Log.d("TaskViewModel", "Adding task with category: $category")
                 val newTask = Task(
                     title = title,
                     description = description,
@@ -154,6 +190,7 @@ class TaskViewModel @Inject constructor(
                     notifyOnDueDate = notifyOnDueDate,
                     repetitiveSettings = repetitiveSettings
                 )
+                Log.d("TaskViewModel", "New task created: $newTask")
                 val insertedId = taskDao.insertTask(newTask)
                 Log.d("TaskViewModel", "Task created with ID: $insertedId")
 
@@ -569,6 +606,7 @@ sealed class FilterOption {
     object All : FilterOption()
     data class Category(val category: CategoryType) : FilterOption()
     object Completed : FilterOption()
+    data class CustomCategory(val category: CategoryType.Custom) : FilterOption()
 }
 
 data class UserPreferences(

@@ -1,16 +1,31 @@
 package com.mytaskpro.data
 
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.google.gson.annotations.SerializedName
 
-enum class CategoryType(val displayName: String, val icon: ImageVector) {
-    WORK("Work", Icons.Default.Work),
-    SCHOOL("School", Icons.Default.School),
-    SOCIAL("Social", Icons.Default.People),
-    CRYPTO("Crypto", Icons.Default.CurrencyBitcoin),
-    HEALTH("Health", Icons.Default.Favorite),
-    MINDFULNESS("Mindfulness", Icons.Default.SelfImprovement),
-    INVOICES("Invoices", Icons.Default.Receipt),
-    COMPLETED("Completed", Icons.Default.CheckCircle)// Added new category
+sealed class CategoryType(
+    @SerializedName("displayName") open val displayName: String,
+    @Transient open val icon: ImageVector
+) {
+    object WORK : CategoryType("Work", Icons.Default.Work)
+    object SCHOOL : CategoryType("School", Icons.Default.School)
+    object SOCIAL : CategoryType("Social", Icons.Default.People)
+    object CRYPTO : CategoryType("Crypto", Icons.Default.CurrencyBitcoin)
+    object HEALTH : CategoryType("Health", Icons.Default.Favorite)
+    object MINDFULNESS : CategoryType("Mindfulness", Icons.Default.SelfImprovement)
+    object INVOICES : CategoryType("Invoices", Icons.Default.Receipt)
+    object COMPLETED : CategoryType("Completed", Icons.Default.CheckCircle)
+
+    object UNKNOWN : CategoryType("Unknown", Icons.Default.Help)
+
+
+    data class Custom(
+        @SerializedName("customDisplayName") override val displayName: String
+    ) : CategoryType(displayName, Icons.Default.Label)
+
+    companion object {
+        fun values(): List<CategoryType> = listOf(WORK, SCHOOL, SOCIAL, CRYPTO, HEALTH, MINDFULNESS, INVOICES)
+    }
 }

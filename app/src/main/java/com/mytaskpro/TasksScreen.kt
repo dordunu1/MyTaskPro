@@ -30,6 +30,11 @@ import com.mytaskpro.viewmodel.TaskAdditionStatus
 import com.mytaskpro.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.mytaskpro.data.CategoryType.Custom
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import com.mytaskpro.ui.theme.VibrantGreen
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -62,6 +67,8 @@ fun TasksScreen(
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var showCategorySelection by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<CategoryType?>(null) }
+
+    val customCategories by viewModel.customCategories.collectAsState()
 
     val lazyListState = rememberLazyListState()
 
@@ -103,7 +110,8 @@ fun TasksScreen(
                 sortOption = sortOption,
                 completedTaskCount = completedTaskCount,
                 onFilterChanged = viewModel::updateFilterOption,
-                onSortChanged = viewModel::updateSortOption
+                onSortChanged = viewModel::updateSortOption,
+                customCategories = customCategories
             )
 
             LazyColumn(
@@ -127,13 +135,18 @@ fun TasksScreen(
     }
 
     if (showCategorySelection) {
+        val customCategories by viewModel.customCategories.collectAsState()
         CategorySelectionDialog(
             onDismiss = { showCategorySelection = false },
             onCategorySelected = { category ->
                 showCategorySelection = false
                 showAddTaskDialog = true
                 selectedCategory = category
-            }
+            },
+            onNewCategoryCreated = { newCategoryName ->
+                viewModel.createCustomCategory(newCategoryName)
+            },
+            customCategories = customCategories
         )
     }
 
@@ -331,7 +344,8 @@ fun FilterAndSortBar(
     sortOption: SortOption,
     completedTaskCount: Int,
     onFilterChanged: (FilterOption) -> Unit,
-    onSortChanged: (SortOption) -> Unit
+    onSortChanged: (SortOption) -> Unit,
+    customCategories: List<CategoryType.Custom>
 ) {
     Row(
         modifier = Modifier
@@ -342,7 +356,8 @@ fun FilterAndSortBar(
         FilterDropdown(
             selectedOption = filterOption,
             onOptionSelected = onFilterChanged,
-            completedTaskCount = completedTaskCount
+            completedTaskCount = completedTaskCount,
+            customCategories = customCategories
         )
         SortDropdown(
             selectedOption = sortOption,
@@ -413,6 +428,7 @@ fun FilterDropdown(
     }
 }
 
+
 @Composable
 fun SortDropdown(
     selectedOption: SortOption,
@@ -441,6 +457,82 @@ fun SortDropdown(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun FilterDropdown(
+    selectedOption: FilterOption,
+    onOptionSelected: (FilterOption) -> Unit,
+    completedTaskCount: Int,
+    customCategories: List<CategoryType.Custom>
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            colors = ButtonDefaults.textButtonColors(contentColor = VibrantBlue)
+        ) {
+            Text("Filter: ${
+                when (selectedOption) {
+                    is FilterOption.All -> "All"
+                    is FilterOption.Category -> selectedOption.category.displayName
+                    is FilterOption.Completed -> "Completed"
+                    is FilterOption.CustomCategory -> selectedOption.category.displayName
+                    else -> "Unknown"
+                }
+            }")
+            Icon(Icons.Default.ArrowDropDown, "Expand")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("All") },
+                onClick = {
+                    onOptionSelected(FilterOption.All)
+                    expanded = false
+                }
+            )
+            CategoryType.values().forEach { category ->
+                if (category != CategoryType.COMPLETED) {
+                    DropdownMenuItem(
+                        text = { Text(category.displayName) },
+                        onClick = {
+                            onOptionSelected(FilterOption.Category(category))
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Icon(category.icon, contentDescription = null)
+                        }
+                    )
+                }
+            }
+            customCategories.forEach { category ->
+                DropdownMenuItem(
+                    text = { Text(category.displayName) },
+                    onClick = {
+                        onOptionSelected(FilterOption.CustomCategory(category))
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Label, contentDescription = null)
+                    }
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Completed ($completedTaskCount)") },
+                onClick = {
+                    onOptionSelected(FilterOption.Completed)
+                    expanded = false
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                }
+            )
         }
     }
 }
