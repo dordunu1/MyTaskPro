@@ -49,7 +49,6 @@ class TaskViewModel @Inject constructor(
     val taskAdditionStatus: StateFlow<TaskAdditionStatus> = _taskAdditionStatus.asStateFlow()
 
     private val _userPreferences = MutableStateFlow(UserPreferences())
-    val userPreferences: StateFlow<UserPreferences> = _userPreferences.asStateFlow()
 
     private val _completedTaskCount = MutableStateFlow(0)
     val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
