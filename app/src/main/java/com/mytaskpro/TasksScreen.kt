@@ -146,15 +146,24 @@ fun TasksScreen(
         )
     }
 
-    if (showAddTaskDialog && selectedCategory != null) {
+    val currentCategory = selectedCategory
+    if (showAddTaskDialog && currentCategory != null) {
         AddTaskDialog(
-            category = selectedCategory!!,
+            category = currentCategory,
             onDismiss = {
                 showAddTaskDialog = false
                 selectedCategory = null
             },
             onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
-                viewModel.addTask(title, description, selectedCategory!!, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings)
+                viewModel.addTask(
+                    title = title,
+                    description = description,
+                    category = currentCategory,
+                    dueDate = dueDate,
+                    reminderTime = reminderTime,
+                    notifyOnDueDate = notifyOnDueDate,
+                    repetitiveSettings = repetitiveSettings
+                )
                 showAddTaskDialog = false
                 selectedCategory = null
             }
@@ -223,7 +232,7 @@ fun TaskItem(
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
-                                .background(task.category.color, CircleShape)
+                                .background(task.categoryColor, CircleShape)
                         )
                     }
                     else -> {

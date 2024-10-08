@@ -11,7 +11,7 @@ sealed class CategoryType(
     @SerializedName("type") open val type: String,
     @SerializedName("displayName") open val displayName: String,
     @Transient open val icon: ImageVector,
-    @Transient open val color: Color
+    @SerializedName("color") open val color: Color
 ) {
     object WORK : CategoryType("WORK", "Work", Icons.Default.Work, Color(0xFF4CAF50))
     object SCHOOL : CategoryType("SCHOOL", "School", Icons.Default.School, Color(0xFF2196F3))
@@ -24,13 +24,13 @@ sealed class CategoryType(
 
     data class Custom(
         @SerializedName("customDisplayName") override val displayName: String,
-        @Transient override val color: Color = generateRandomColor()
+        @SerializedName("customColor") override val color: Color = generateRandomColor()
     ) : CategoryType("CUSTOM", displayName, Icons.Default.Label, color)
 
     companion object {
         fun values(): List<CategoryType> = listOf(WORK, SCHOOL, SOCIAL, CRYPTO, HEALTH, MINDFULNESS, INVOICES, COMPLETED)
 
-        private fun generateRandomColor(): Color {
+        fun generateRandomColor(): Color {
             return Color(
                 red = Random.nextFloat(),
                 green = Random.nextFloat(),

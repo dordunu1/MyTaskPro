@@ -87,7 +87,7 @@ class TaskViewModel @Inject constructor(
     }
 
     fun createCustomCategory(name: String) {
-        val newCategory = CategoryType.Custom(name)
+        val newCategory = CategoryType.Custom(name, CategoryType.generateRandomColor())
         _customCategories.value = _customCategories.value + newCategory
         saveCustomCategories()
     }

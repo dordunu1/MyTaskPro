@@ -6,7 +6,7 @@
     "entities": [
       {
         "tableName": "tasks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `dueDate` INTEGER NOT NULL, `reminderTime` INTEGER, `isCompleted` INTEGER NOT NULL, `completionDate` INTEGER, `isSnoozed` INTEGER NOT NULL, `snoozeCount` INTEGER NOT NULL, `showSnoozeOptions` INTEGER NOT NULL, `notifyOnDueDate` INTEGER NOT NULL, `repetitiveSettings` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `dueDate` INTEGER NOT NULL, `reminderTime` INTEGER, `isCompleted` INTEGER NOT NULL, `notifyOnDueDate` INTEGER NOT NULL, `repetitiveSettings` TEXT, `showSnoozeOptions` INTEGER NOT NULL, `snoozeCount` INTEGER NOT NULL, `isSnoozed` INTEGER NOT NULL, `completionDate` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -51,14 +51,20 @@
             "notNull": true
           },
           {
-            "fieldPath": "completionDate",
-            "columnName": "completionDate",
+            "fieldPath": "notifyOnDueDate",
+            "columnName": "notifyOnDueDate",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "repetitiveSettings",
+            "columnName": "repetitiveSettings",
+            "affinity": "TEXT",
             "notNull": false
           },
           {
-            "fieldPath": "isSnoozed",
-            "columnName": "isSnoozed",
+            "fieldPath": "showSnoozeOptions",
+            "columnName": "showSnoozeOptions",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -69,21 +75,15 @@
             "notNull": true
           },
           {
-            "fieldPath": "showSnoozeOptions",
-            "columnName": "showSnoozeOptions",
+            "fieldPath": "isSnoozed",
+            "columnName": "isSnoozed",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "notifyOnDueDate",
-            "columnName": "notifyOnDueDate",
+            "fieldPath": "completionDate",
+            "columnName": "completionDate",
             "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "repetitiveSettings",
-            "columnName": "repetitiveSettings",
-            "affinity": "TEXT",
             "notNull": false
           }
         ],

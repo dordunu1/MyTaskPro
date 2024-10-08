@@ -1,6 +1,8 @@
 package com.mytaskpro.data
 
 import android.util.Log
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
@@ -13,20 +15,27 @@ import java.util.Date
 @Entity(tableName = "tasks")
 @TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class)
 data class Task(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
     val title: String,
     val description: String,
     val category: CategoryType,
     val dueDate: Date,
-    val reminderTime: Date?,
+    val reminderTime: Date? = null,
     val isCompleted: Boolean = false,
-    val completionDate: Date? = null,
-    val isSnoozed: Boolean = false,
-    val snoozeCount: Int = 0,
-    val showSnoozeOptions: Boolean = false,
     val notifyOnDueDate: Boolean = true,
-    val repetitiveSettings: RepetitiveTaskSettings? = null
-)
+    val repetitiveSettings: RepetitiveTaskSettings? = null,
+    val showSnoozeOptions: Boolean = false,
+    val snoozeCount: Int = 0,
+    val isSnoozed: Boolean = false,
+    val completionDate: Date? = null
+) {
+    val categoryColor: Color
+        get() = when (category) {
+            is CategoryType.Custom -> category.color
+            else -> Color.Unspecified
+        }
+}
 
 class RepetitiveTaskSettingsConverter {
     @TypeConverter
@@ -46,13 +55,24 @@ class CategoryTypeConverter {
         .create()
 
     @TypeConverter
-    fun fromCategoryType(value: CategoryType): String {
-        return gson.toJson(value)
+    fun fromCategoryType(category: CategoryType): String {
+        return when (category) {
+            is CategoryType.Custom -> "CUSTOM:${category.displayName}:${category.color.toArgb()}"
+            else -> gson.toJson(category)
+        }
     }
+
 
     @TypeConverter
     fun toCategoryType(value: String): CategoryType {
-        return gson.fromJson(value, CategoryType::class.java)
+        return if (value.startsWith("CUSTOM:")) {
+            val parts = value.split(":")
+            val name = parts[1]
+            val color = Color(parts[2].toInt())
+            CategoryType.Custom(name, color)
+        } else {
+            gson.fromJson(value, CategoryType::class.java)
+        }
     }
 }
 
