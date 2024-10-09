@@ -18,6 +18,7 @@ fun SettingsScreen(
 ) {
     var enablePushNotifications by remember { mutableStateOf(false) }
     var enableCalendarIntegration by remember { mutableStateOf(false) }
+    var isPremium by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -51,10 +52,30 @@ fun SettingsScreen(
                 Text("Task Sharing Options")
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = { /* TODO: Implement subtasks */ }) {
-                Text("Manage Subtasks")
+            Text("Premium Features", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Premium Status")
+                Switch(
+                    checked = isPremium,
+                    onCheckedChange = { isPremium = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { /* TODO: Implement upgrade to premium */ },
+                enabled = !isPremium
+            ) {
+                Text(if (isPremium) "You are a Premium User" else "Upgrade to Premium")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
