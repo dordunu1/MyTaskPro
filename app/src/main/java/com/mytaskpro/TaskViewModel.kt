@@ -24,6 +24,9 @@ import com.google.gson.reflect.TypeToken
 import com.mytaskpro.ui.RepetitionType
 import java.time.ZoneId
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -556,6 +559,34 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun updateTaskRepetitiveSettings(taskId: Int, newSettings: RepetitiveTaskSettings?) {
+        viewModelScope.launch {
+            try {
+                val task = taskDao.getTaskById(taskId)
+                if (task != null) {
+                    val updatedTask = task.copy(repetitiveSettings = newSettings)
+                    taskDao.updateTask(updatedTask)
+
+                    // Update the UI state immediately
+                    _tasks.value = _tasks.value.map { if (it.id == taskId) updatedTask else it }
+
+                    // Cancel existing repetitive task
+                    cancelRepetitiveTask(taskId)
+
+                    // Schedule new repetitive task if settings are not null
+                    if (newSettings != null) {
+                        scheduleRepetitiveTask(updatedTask)
+                    }
+
+                    Log.d("TaskViewModel", "Updated repetitive settings for task $taskId")
+                } else {
+                    Log.e("TaskViewModel", "Task not found for id $taskId")
+                }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error updating repetitive settings: ${e.message}")
+            }
+        }
+    }
     fun deleteNote(noteId: Int) {
         viewModelScope.launch {
             try {
@@ -595,6 +626,7 @@ class TaskViewModel @Inject constructor(
         saveUserPreferences()
     }
 }
+
 
 enum class SortOption(val displayName: String) {
     DUE_DATE("Due Date"),

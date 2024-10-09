@@ -60,7 +60,7 @@ fun RepetitiveTaskDialog(
                     when (settings.type) {
                         RepetitionType.ONE_TIME -> {}
                         RepetitionType.DAILY -> DailyRepetitionOptions(settings, onSettingsChanged = { settings = it })
-                        RepetitionType.WEEKDAYS -> WeekdaysRepetitionOptions(settings, onSettingsChanged = { settings = it })
+                        RepetitionType.WEEKDAYS -> WeekdaysRepetitionOption(settings, onSettingsChanged = { settings = it })
                         RepetitionType.WEEKLY -> WeeklyRepetitionOptions(settings, onSettingsChanged = { settings = it })
                         RepetitionType.MONTHLY -> MonthlyRepetitionOptions(settings, onSettingsChanged = { settings = it })
                         RepetitionType.YEARLY -> YearlyRepetitionOptions(settings, onSettingsChanged = { settings = it })
@@ -182,24 +182,27 @@ fun DailyRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged: 
 }
 
 @Composable
-fun WeekdaysRepetitionOptions(settings: RepetitiveTaskSettings, onSettingsChanged: (RepetitiveTaskSettings) -> Unit) {
-    Text("Repeats on:", style = MaterialTheme.typography.bodyMedium)
-    Spacer(modifier = Modifier.height(4.dp))
+fun WeekdaysRepetitionOption(settings: RepetitiveTaskSettings, onSettingsChanged: (RepetitiveTaskSettings) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        listOf( "M", "T", "W", "T", "F",).forEachIndexed { index, day ->
-            DayToggleButton(
-                day = day,
-                isSelected = index in settings.weekDays,
-                onToggle = {
-                    val newWeekDays = settings.weekDays.toMutableList()
-                    if (index in newWeekDays) newWeekDays.remove(index) else newWeekDays.add(index)
-                    onSettingsChanged(settings.copy(weekDays = newWeekDays))
+        Text(
+            "Repeat on weekdays",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = settings.weekDays.size == 5, // Assuming 5 weekdays
+            onCheckedChange = { isChecked ->
+                val newWeekDays = if (isChecked) {
+                    listOf(0, 1, 2, 3, 4) // Monday to Friday
+                } else {
+                    emptyList()
                 }
-            )
-        }
+                onSettingsChanged(settings.copy(weekDays = newWeekDays))
+            }
+        )
     }
 }
 
