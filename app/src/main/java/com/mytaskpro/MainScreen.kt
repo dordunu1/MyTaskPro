@@ -23,12 +23,9 @@ import androidx.navigation.navArgument
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.ui.components.ThemeSelectionDialog
-import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.unit.dp
+import com.mytaskpro.SettingsScreen
 import com.mytaskpro.data.CategoryType
 import java.util.Date
 
@@ -53,10 +50,10 @@ fun MainScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text("MyTaskPro")
-                            IconButton(onClick = { /* Navigate to profile screen */ }) {
+                            IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                                 Icon(
-                                    imageVector = Icons.Default.AccountCircle,
-                                    contentDescription = "Profile",
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings",
                                     tint = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
@@ -112,7 +109,7 @@ fun MainScreen(
                 composable(Screen.Tasks.route) {
                     TasksScreen(
                         viewModel = taskViewModel,
-                        onTaskClick = onTaskClick,  // Use the parameter passed to MainScreen
+                        onTaskClick = onTaskClick,
                         onEditTask = { taskId ->
                             navController.navigate("taskDetail/$taskId?edit=true")
                         }
@@ -122,6 +119,7 @@ fun MainScreen(
                 composable(Screen.Notes.route) {
                     NotesScreen(viewModel = taskViewModel)
                 }
+
                 composable(
                     route = "${Screen.EditTask.route}/{taskId}",
                     arguments = listOf(navArgument("taskId") { type = NavType.IntType })
@@ -133,6 +131,7 @@ fun MainScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
+
                 composable(
                     route = "${Screen.EditNote.route}/{noteId}",
                     arguments = listOf(navArgument("noteId") { type = NavType.IntType })
@@ -144,6 +143,7 @@ fun MainScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
+
                 composable(
                     route = "note_detail/{noteId}",
                     arguments = listOf(navArgument("noteId") { type = NavType.IntType })
@@ -156,6 +156,9 @@ fun MainScreen(
                     )
                 }
 
+                composable(Screen.Settings.route) {
+                    SettingsScreen(onNavigateBack = { navController.popBackStack() })
+                }
             }
         }
 
@@ -191,6 +194,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object EditTask : Screen("edit_task", "Edit Task", Icons.Filled.Edit)
     object EditNote : Screen("edit_note", "Edit Note", Icons.Filled.Edit)
     object TaskDetail : Screen("task_detail", "Task Detail", Icons.Filled.Info)
+    object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
 @Composable
