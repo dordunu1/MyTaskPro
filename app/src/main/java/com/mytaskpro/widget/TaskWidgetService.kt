@@ -28,11 +28,10 @@ class TaskWidgetService : RemoteViewsService() {
                 "appWidgetId",
                 android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID
             )
-            val maxTasks = intent.getIntExtra("MAX_TASKS", 5) // Default to 5 if not provided
             val currentTime = System.currentTimeMillis()
 
-            Log.d(TAG, "Creating TaskWidgetRemoteViewsFactory for widget ID: $appWidgetId, maxTasks: $maxTasks")
-            TaskWidgetRemoteViewsFactory(applicationContext, taskDao, appWidgetId, maxTasks, currentTime)
+            Log.d(TAG, "Creating TaskWidgetRemoteViewsFactory for widget ID: $appWidgetId")
+            TaskWidgetRemoteViewsFactory(applicationContext, taskDao, appWidgetId, currentTime)
         } catch (e: Exception) {
             Log.e(TAG, "Error creating RemoteViewsFactory", e)
             // Return a dummy factory in case of error
