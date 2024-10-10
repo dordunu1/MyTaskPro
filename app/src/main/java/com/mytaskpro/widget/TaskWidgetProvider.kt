@@ -3,6 +3,7 @@ package com.mytaskpro.widget
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -29,11 +30,19 @@ class TaskWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    fun forceWidgetUpdate(context: Context) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(ComponentName(context, TaskWidgetProvider::class.java))
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list_view)
+        Log.d(TAG, "Forced widget update for ${appWidgetIds.size} widgets")
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         Log.d(TAG, "onUpdate called for ${appWidgetIds.size} widgets")
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
+        forceWidgetUpdate(context)
     }
 
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {

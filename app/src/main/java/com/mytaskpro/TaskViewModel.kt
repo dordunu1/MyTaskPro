@@ -740,7 +740,6 @@ class TaskViewModel @Inject constructor(
 
     private fun updateWidget() {
         updateWidgetScope.launch {
-            delay(300) // Debounce for 300ms
             withContext(Dispatchers.Main) {
                 try {
                     val intent = Intent(getApplication(), TaskWidgetProvider::class.java).apply {
@@ -751,6 +750,10 @@ class TaskViewModel @Inject constructor(
                     }
                     getApplication<Application>().sendBroadcast(intent)
                     Log.d("TaskViewModel", "Widget update broadcast sent")
+                    // Force an immediate update
+                    (getApplication() as? Context)?.let { context ->
+                        TaskWidgetProvider().forceWidgetUpdate(context)
+                    }
                 } catch (e: Exception) {
                     Log.e("TaskViewModel", "Error updating widget", e)
                 }
