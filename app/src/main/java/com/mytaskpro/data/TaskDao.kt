@@ -54,4 +54,19 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE isCompleted = 1 AND date(completionDate / 1000, 'unixepoch') = date(:date / 1000, 'unixepoch')")
     fun getTasksCompletedOnDate(date: Date): Flow<List<Task>>
+
+    @Query("SELECT * FROM tasks WHERE dueDate >= :currentDate ORDER BY dueDate ASC LIMIT :limit")
+    suspend fun getUpcomingTasks(currentDate: Long = System.currentTimeMillis(), limit: Int = 5): List<Task>
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY dueDate ASC LIMIT :limit")
+    suspend fun getTasksForWidget(limit: Int): List<Task>
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 0")
+    suspend fun getPendingTaskCount(): Int
+
+    @Query("SELECT * FROM tasks WHERE dueDate >= :startDate AND dueDate < :endDate ORDER BY dueDate ASC")
+    suspend fun getTasksForDateRange(startDate: Long, endDate: Long): List<Task>
+
+    @Query("SELECT * FROM tasks WHERE dueDate > :currentDate AND isCompleted = 0 ORDER BY dueDate ASC LIMIT :limit")
+    suspend fun getUpcomingTasks(limit: Int, currentDate: Date): List<Task>
 }

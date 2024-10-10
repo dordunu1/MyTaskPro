@@ -3,7 +3,6 @@ package com.mytaskpro
 import android.content.Context
 import com.mytaskpro.data.Note
 import com.mytaskpro.data.Task
-import com.mytaskpro.viewmodel.UserPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.io.File
@@ -13,6 +12,7 @@ import javax.inject.Singleton
 @Singleton
 class StorageManager @Inject constructor(private val context: Context) {
     private val gson = Gson()
+    private val sharedPreferences = context.getSharedPreferences("MyTaskProPreferences", Context.MODE_PRIVATE)
 
     private fun getNextId(items: List<Any>): Int {
         return (items.maxOfOrNull {
@@ -78,18 +78,38 @@ class StorageManager @Inject constructor(private val context: Context) {
         }
     }
 
-    fun saveUserPreferences(preferences: UserPreferences) {
-        val preferencesFile = File(context.filesDir, "user_preferences.json")
-        preferencesFile.writeText(gson.toJson(preferences))
+    fun savePreference(key: String, value: Any) {
+        with(sharedPreferences.edit()) {
+            when (value) {
+                is String -> putString(key, value)
+                is Int -> putInt(key, value)
+                is Boolean -> putBoolean(key, value)
+                is Float -> putFloat(key, value)
+                is Long -> putLong(key, value)
+                else -> throw IllegalArgumentException("This type can't be saved into Preferences")
+            }
+            apply()
+        }
     }
 
-    fun loadUserPreferences(): UserPreferences {
-        val preferencesFile = File(context.filesDir, "user_preferences.json")
-        return if (preferencesFile.exists()) {
-            gson.fromJson(preferencesFile.readText(), UserPreferences::class.java)
-        } else {
-            UserPreferences() // Return default preferences if file doesn't exist
-        }
+    fun getStringPreference(key: String, defaultValue: String = ""): String {
+        return sharedPreferences.getString(key, defaultValue) ?: defaultValue
+    }
+
+    fun getBooleanPreference(key: String, defaultValue: Boolean = false): Boolean {
+        return sharedPreferences.getBoolean(key, defaultValue)
+    }
+
+    fun getIntPreference(key: String, defaultValue: Int = 0): Int {
+        return sharedPreferences.getInt(key, defaultValue)
+    }
+
+    fun getFloatPreference(key: String, defaultValue: Float = 0f): Float {
+        return sharedPreferences.getFloat(key, defaultValue)
+    }
+
+    fun getLongPreference(key: String, defaultValue: Long = 0L): Long {
+        return sharedPreferences.getLong(key, defaultValue)
     }
 
     fun updateNote(updatedNote: Note) {

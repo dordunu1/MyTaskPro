@@ -10,13 +10,14 @@ import com.mytaskpro.data.NoteRepository
 import com.mytaskpro.data.TaskDao
 import com.mytaskpro.ui.RepetitionType
 import com.mytaskpro.viewmodel.TaskViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
 class RepetitiveTaskWorker @Inject constructor(
-    context: Context,
+    @ApplicationContext context: Context,
     params: WorkerParameters,
     private val taskDao: TaskDao,
     private val noteDao: NoteDao

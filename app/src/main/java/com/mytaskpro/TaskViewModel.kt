@@ -1,16 +1,21 @@
 package com.mytaskpro.viewmodel
 
+import android.app.Application
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
 import com.mytaskpro.data.*
 import com.mytaskpro.StorageManager
 import com.mytaskpro.util.ReminderWorker
 import com.mytaskpro.util.RepetitiveTaskWorker
+import com.mytaskpro.widget.TaskWidgetProvider
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -24,18 +29,23 @@ import com.google.gson.reflect.TypeToken
 import com.mytaskpro.ui.RepetitionType
 import java.time.ZoneId
 import com.google.gson.GsonBuilder
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
+import com.mytaskpro.viewmodel.TaskViewModel.SortOption
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
-    private val context: Context,
+    application: Context,
     private val taskDao: TaskDao,
     private val noteRepository: NoteRepository,
     private val storageManager: StorageManager,
     private val workManager: WorkManager
-) : ViewModel() {
+) : AndroidViewModel(application as Application) {
+
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
@@ -56,6 +66,9 @@ class TaskViewModel @Inject constructor(
     private val _completedTaskCount = MutableStateFlow(0)
     val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
 
+    private val updateWidgetJob = Job()
+    private val updateWidgetScope = CoroutineScope(Dispatchers.Default + updateWidgetJob)
+
     private val _customCategories = MutableStateFlow<List<CategoryType.Custom>>(emptyList())
     val customCategories: StateFlow<List<CategoryType.Custom>> = _customCategories.asStateFlow()
 
@@ -63,7 +76,12 @@ class TaskViewModel @Inject constructor(
         .registerTypeAdapter(CategoryType::class.java, CategoryTypeAdapter())
         .create()
 
-    val filteredAndSortedTasks = combine(_tasks, _filterOption, _sortOption, _customCategories) { tasks, filter, sort, customCategories ->
+    val filteredAndSortedTasks = combine(
+        _tasks,
+        _filterOption,
+        _sortOption,
+        _customCategories
+    ) { tasks, filter, sort, customCategories ->
         tasks.filter { task ->
             when (filter) {
                 is FilterOption.All -> true
@@ -82,6 +100,14 @@ class TaskViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    init {
+        loadData()
+        loadNotes()
+        loadUserPreferences()
+        loadCustomCategories()
+        observeTasks()
+        observeNotes()
+    }
 
     fun getTaskById(id: Int): Flow<Task?> {
         return flow {
@@ -98,7 +124,10 @@ class TaskViewModel @Inject constructor(
     private fun saveCustomCategories() {
         viewModelScope.launch {
             val customCategoriesJson = gson.toJson(_customCategories.value)
-            context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+            getApplication<Application>().getSharedPreferences(
+                "MyTaskProPrefs",
+                Context.MODE_PRIVATE
+            )
                 .edit()
                 .putString("customCategories", customCategoriesJson)
                 .apply()
@@ -106,23 +135,19 @@ class TaskViewModel @Inject constructor(
     }
 
     private fun loadCustomCategories() {
-        val sharedPrefs = context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            "MyTaskProPrefs",
+            Context.MODE_PRIVATE
+        )
         val customCategoriesJson = sharedPrefs.getString("customCategories", null)
         if (customCategoriesJson != null) {
             val type = object : TypeToken<List<CategoryType.Custom>>() {}.type
-            val loadedCategories = gson.fromJson<List<CategoryType.Custom>>(customCategoriesJson, type)
+            val loadedCategories =
+                gson.fromJson<List<CategoryType.Custom>>(customCategoriesJson, type)
             _customCategories.value = loadedCategories
         }
     }
 
-    init {
-        loadData()
-        loadNotes()
-        loadUserPreferences()
-        loadCustomCategories()
-        observeTasks()
-        observeNotes()
-    }
     private fun observeTasks() {
         viewModelScope.launch {
             taskDao.getAllTasks().collect { taskList ->
@@ -131,7 +156,6 @@ class TaskViewModel @Inject constructor(
             }
         }
     }
-
 
     private fun observeNotes() {
         viewModelScope.launch {
@@ -147,7 +171,10 @@ class TaskViewModel @Inject constructor(
     }
 
     private fun loadNotes() {
-        val sharedPrefs = context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            "MyTaskProPrefs",
+            Context.MODE_PRIVATE
+        )
         val notesJson = sharedPrefs.getString("notes", null)
         if (notesJson != null) {
             val type = object : TypeToken<List<Note>>() {}.type
@@ -160,7 +187,10 @@ class TaskViewModel @Inject constructor(
     }
 
     private fun saveNotes() {
-        val sharedPrefs = context.getSharedPreferences("MyTaskProPrefs", Context.MODE_PRIVATE)
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            "MyTaskProPrefs",
+            Context.MODE_PRIVATE
+        )
         val notesJson = Gson().toJson(_notes.value)
         sharedPrefs.edit().putString("notes", notesJson).apply()
         Log.d("TaskViewModel", "Notes saved: ${_notes.value}")
@@ -168,20 +198,43 @@ class TaskViewModel @Inject constructor(
 
     private fun loadUserPreferences() {
         viewModelScope.launch {
-            _userPreferences.value = storageManager.loadUserPreferences()
+            // Load individual preferences as needed
+            val savedSortOption = storageManager.getStringPreference("sortOption", SortOption.DUE_DATE.name)
+            _sortOption.value = try {
+                SortOption.valueOf(savedSortOption)
+            } catch (e: IllegalArgumentException) {
+                SortOption.DUE_DATE
+            }
+
+            val savedFilterOption = storageManager.getStringPreference("filterOption", FilterOption.All.toStorageString())
+            _filterOption.value = FilterOption.fromString(savedFilterOption)
+
+            // Load other preferences as needed
         }
     }
 
     private fun saveUserPreferences() {
         viewModelScope.launch {
-            storageManager.saveUserPreferences(_userPreferences.value)
+            // Save individual preferences
+            storageManager.savePreference("sortOption", _sortOption.value.name)
+            storageManager.savePreference("filterOption", _filterOption.value.toStorageString())
+            // Save other preferences as needed
         }
     }
 
     fun showCompletedTasks() {
         _filterOption.value = FilterOption.Completed
     }
-    fun addTask(title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
+
+    fun addTask(
+        title: String,
+        description: String,
+        category: CategoryType,
+        dueDate: Date,
+        reminderTime: Date?,
+        notifyOnDueDate: Boolean,
+        repetitiveSettings: RepetitiveTaskSettings?
+    ) {
         viewModelScope.launch {
             try {
                 Log.d("TaskViewModel", "Adding task with category: $category")
@@ -206,6 +259,7 @@ class TaskViewModel @Inject constructor(
                     if (repetitiveSettings != null) {
                         scheduleRepetitiveTask(insertedTask)
                     }
+                    updateWidget()
                 } else {
                     Log.e("TaskViewModel", "Failed to retrieve inserted task")
                     _taskAdditionStatus.value = TaskAdditionStatus.Error
@@ -217,9 +271,27 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun updateTask(taskId: Int, title: String, description: String, category: CategoryType, dueDate: Date, reminderTime: Date?, notifyOnDueDate: Boolean, repetitiveSettings: RepetitiveTaskSettings?) {
+    fun updateTask(
+        taskId: Int,
+        title: String,
+        description: String,
+        category: CategoryType,
+        dueDate: Date,
+        reminderTime: Date?,
+        notifyOnDueDate: Boolean,
+        repetitiveSettings: RepetitiveTaskSettings?
+    ) {
         viewModelScope.launch {
-            val updatedTask = Task(taskId, title, description, category, dueDate, reminderTime, notifyOnDueDate = notifyOnDueDate, repetitiveSettings = repetitiveSettings)
+            val updatedTask = Task(
+                taskId,
+                title,
+                description,
+                category,
+                dueDate,
+                reminderTime,
+                notifyOnDueDate = notifyOnDueDate,
+                repetitiveSettings = repetitiveSettings
+            )
             taskDao.updateTask(updatedTask)
             scheduleNotifications(updatedTask)
             if (repetitiveSettings != null) {
@@ -227,6 +299,7 @@ class TaskViewModel @Inject constructor(
             } else {
                 cancelRepetitiveTask(taskId)
             }
+            updateWidget()
         }
     }
 
@@ -245,16 +318,18 @@ class TaskViewModel @Inject constructor(
     fun scheduleRepetitiveTask(task: Task) {
         val repetitiveSettings = task.repetitiveSettings ?: return
         val workRequest = OneTimeWorkRequestBuilder<RepetitiveTaskWorker>()
-            .setInputData(workDataOf(
-                "taskId" to task.id,
-                "repetitionType" to repetitiveSettings.type.name,
-                "interval" to repetitiveSettings.interval,
-                "weekDays" to repetitiveSettings.weekDays.joinToString(","),
-                "monthDay" to (repetitiveSettings.monthDay ?: -1),
-                "monthWeek" to (repetitiveSettings.monthWeek ?: -1),
-                "monthWeekDay" to (repetitiveSettings.monthWeekDay ?: -1),
-                "endDate" to (repetitiveSettings.endDate ?: -1L)
-            ))
+            .setInputData(
+                workDataOf(
+                    "taskId" to task.id,
+                    "repetitionType" to repetitiveSettings.type.name,
+                    "interval" to repetitiveSettings.interval,
+                    "weekDays" to repetitiveSettings.weekDays.joinToString(","),
+                    "monthDay" to (repetitiveSettings.monthDay ?: -1),
+                    "monthWeek" to (repetitiveSettings.monthWeek ?: -1),
+                    "monthWeekDay" to (repetitiveSettings.monthWeekDay ?: -1),
+                    "endDate" to (repetitiveSettings.endDate ?: -1L)
+                )
+            )
             .setInitialDelay(calculateNextOccurrence(task), TimeUnit.MILLISECONDS)
             .build()
 
@@ -270,7 +345,8 @@ class TaskViewModel @Inject constructor(
     }
 
     private fun calculateNextOccurrence(task: Task): Long {
-        val repetitiveSettings = task.repetitiveSettings ?: return 24 * 60 * 60 * 1000L // Default to 24 hours if no settings
+        val repetitiveSettings = task.repetitiveSettings
+            ?: return 24 * 60 * 60 * 1000L // Default to 24 hours if no settings
 
         val calendar = Calendar.getInstance()
         calendar.time = task.dueDate
@@ -279,6 +355,7 @@ class TaskViewModel @Inject constructor(
             RepetitionType.DAILY -> {
                 calendar.add(Calendar.DAY_OF_YEAR, repetitiveSettings.interval)
             }
+
             RepetitionType.WEEKLY -> {
                 calendar.add(Calendar.WEEK_OF_YEAR, repetitiveSettings.interval)
                 if (repetitiveSettings.weekDays.isNotEmpty()) {
@@ -287,25 +364,32 @@ class TaskViewModel @Inject constructor(
                     }
                 }
             }
+
             RepetitionType.MONTHLY -> {
                 calendar.add(Calendar.MONTH, repetitiveSettings.interval)
                 repetitiveSettings.monthDay?.let { day ->
-                    calendar.set(Calendar.DAY_OF_MONTH, day.coerceIn(1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH)))
+                    calendar.set(
+                        Calendar.DAY_OF_MONTH,
+                        day.coerceIn(1, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+                    )
                 }
                 if (repetitiveSettings.monthWeek != null && repetitiveSettings.monthWeekDay != null) {
                     calendar.set(Calendar.DAY_OF_WEEK_IN_MONTH, repetitiveSettings.monthWeek)
                     calendar.set(Calendar.DAY_OF_WEEK, repetitiveSettings.monthWeekDay)
                 }
             }
+
             RepetitionType.YEARLY -> {
                 calendar.add(Calendar.YEAR, repetitiveSettings.interval)
             }
+
             else -> return 24 * 60 * 60 * 1000L // Default to 24 hours for unsupported types
         }
 
         // Check if the calculated date is after the end date (if set)
         repetitiveSettings.endDate?.let { endDate ->
-            val endDateMillis = endDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endDateMillis =
+                endDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             if (calendar.timeInMillis > endDateMillis) {
                 return -1 // Indicate that no more occurrences should be scheduled
             }
@@ -344,6 +428,7 @@ class TaskViewModel @Inject constructor(
             )
             taskDao.updateTask(updatedTask)
             scheduleNotifications(updatedTask)
+            updateWidget()
             Log.d("TaskViewModel", "Task snoozed: ${task.title}, New due date: $newDueDate")
         }
     }
@@ -365,6 +450,7 @@ class TaskViewModel @Inject constructor(
                     taskDao.updateTask(updatedTask)
                     Log.d("TaskViewModel", "Task updated: $updatedTask")
                     scheduleNotifications(updatedTask)
+                    updateWidget()
                 } else {
                     Log.e("TaskViewModel", "Task not found for id $taskId")
                 }
@@ -379,6 +465,7 @@ class TaskViewModel @Inject constructor(
         workManager.cancelUniqueWork("due_date_$taskId")
         viewModelScope.launch {
             taskDao.cancelReminder(taskId)
+            updateWidget()
         }
     }
 
@@ -408,7 +495,10 @@ class TaskViewModel @Inject constructor(
                 workRequest
             )
 
-            Log.d("TaskViewModel", "Scheduled $notificationType notification for task ${task.id} at ${notificationTime}")
+            Log.d(
+                "TaskViewModel",
+                "Scheduled $notificationType notification for task ${task.id} at ${notificationTime}"
+            )
         }
     }
 
@@ -424,6 +514,7 @@ class TaskViewModel @Inject constructor(
                 updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
                 _completedTaskCount.value -= 1
             }
+            updateWidget()
         }
     }
 
@@ -434,6 +525,7 @@ class TaskViewModel @Inject constructor(
                 taskDao.deleteTask(task)
                 workManager.cancelUniqueWork("reminder_$taskId")
                 cancelRepetitiveTask(taskId)
+                updateWidget()
             } else {
                 Log.e("TaskViewModel", "Task not found for deletion: $taskId")
             }
@@ -442,9 +534,9 @@ class TaskViewModel @Inject constructor(
 
     private fun copyImageToInternalStorage(uri: Uri): String? {
         return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
+            val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
             val fileName = "image_${System.currentTimeMillis()}.jpg"
-            val outputFile = File(context.filesDir, fileName)
+            val outputFile = File(getApplication<Application>().filesDir, fileName)
             inputStream?.use { input ->
                 FileOutputStream(outputFile).use { output ->
                     input.copyTo(output)
@@ -461,9 +553,9 @@ class TaskViewModel @Inject constructor(
         return try {
             val uri = Uri.parse(uriString)
             Log.d("TaskViewModel", "Attempting to copy PDF from URI: $uri")
-            val inputStream = context.contentResolver.openInputStream(uri)
+            val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
             val fileName = getFileNameFromUri(uri) ?: "pdf_${System.currentTimeMillis()}.pdf"
-            val outputFile = File(context.filesDir, fileName)
+            val outputFile = File(getApplication<Application>().filesDir, fileName)
             inputStream?.use { input ->
                 outputFile.outputStream().use { output ->
                     input.copyTo(output)
@@ -479,19 +571,28 @@ class TaskViewModel @Inject constructor(
 
     private fun getFileNameFromUri(uri: Uri): String? {
         var fileName: String? = null
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1 && cursor.moveToFirst()) {
-                fileName = cursor.getString(nameIndex)
+        getApplication<Application>().contentResolver.query(uri, null, null, null, null)
+            ?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) {
+                    fileName = cursor.getString(nameIndex)
+                }
             }
-        }
         if (fileName == null) {
             fileName = uri.lastPathSegment
         }
         return fileName
     }
 
-    fun addNote(title: String, content: String, category: CategoryType, photoPath: String?, scannedText: String?, imageUris: List<String>, pdfUris: List<String>) {
+    fun addNote(
+        title: String,
+        content: String,
+        category: CategoryType,
+        photoPath: String?,
+        scannedText: String?,
+        imageUris: List<String>,
+        pdfUris: List<String>
+    ) {
         viewModelScope.launch {
             try {
                 Log.d("TaskViewModel", "Adding note: $title")
@@ -521,7 +622,10 @@ class TaskViewModel @Inject constructor(
                 )
                 noteRepository.insertNote(newNote)
                 saveNotes()
-                Log.d("TaskViewModel", "Note added: $title, Copied Image Paths: $copiedImagePaths, Copied PDF Paths: $copiedPdfPaths")
+                Log.d(
+                    "TaskViewModel",
+                    "Note added: $title, Copied Image Paths: $copiedImagePaths, Copied PDF Paths: $copiedPdfPaths"
+                )
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Error adding note", e)
             }
@@ -552,7 +656,10 @@ class TaskViewModel @Inject constructor(
                 )
                 noteRepository.updateNote(updatedNote)
                 saveNotes()
-                Log.d("TaskViewModel", "Note updated: ${note.title}, Updated Image Paths: $updatedImagePaths, Updated PDF Paths: $updatedPdfPaths")
+                Log.d(
+                    "TaskViewModel",
+                    "Note updated: ${note.title}, Updated Image Paths: $updatedImagePaths, Updated PDF Paths: $updatedPdfPaths"
+                )
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Error updating note", e)
             }
@@ -578,6 +685,7 @@ class TaskViewModel @Inject constructor(
                         scheduleRepetitiveTask(updatedTask)
                     }
 
+                    updateWidget()
                     Log.d("TaskViewModel", "Updated repetitive settings for task $taskId")
                 } else {
                     Log.e("TaskViewModel", "Task not found for id $taskId")
@@ -587,6 +695,7 @@ class TaskViewModel @Inject constructor(
             }
         }
     }
+
     fun deleteNote(noteId: Int) {
         viewModelScope.launch {
             try {
@@ -606,10 +715,12 @@ class TaskViewModel @Inject constructor(
 
     fun updateFilterOption(option: FilterOption) {
         _filterOption.value = option
+        saveUserPreferences()
     }
 
     fun updateSortOption(option: SortOption) {
         _sortOption.value = option
+        saveUserPreferences()
     }
 
     fun resetTaskAdditionStatus() {
@@ -625,25 +736,70 @@ class TaskViewModel @Inject constructor(
         _userPreferences.value = _userPreferences.value.copy(notificationSound = sound)
         saveUserPreferences()
     }
+
+
+    private fun updateWidget() {
+        updateWidgetScope.launch {
+            delay(300) // Debounce for 300ms
+            withContext(Dispatchers.Main) {
+                try {
+                    val intent = Intent(getApplication(), TaskWidgetProvider::class.java).apply {
+                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                        val ids = AppWidgetManager.getInstance(getApplication())
+                            .getAppWidgetIds(ComponentName(getApplication(), TaskWidgetProvider::class.java))
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                    }
+                    getApplication<Application>().sendBroadcast(intent)
+                    Log.d("TaskViewModel", "Widget update broadcast sent")
+                } catch (e: Exception) {
+                    Log.e("TaskViewModel", "Error updating widget", e)
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        updateWidgetJob.cancel()
+    }
+
+    enum class SortOption(val displayName: String) {
+        DUE_DATE("Due Date"),
+        TITLE("Title"),
+        COMPLETED("Completed"),
+        UNCOMPLETED("Uncompleted")
+    }
+
+    sealed class FilterOption {
+        object All : FilterOption()
+        data class Category(val category: CategoryType) : FilterOption()
+        object Completed : FilterOption()
+        data class CustomCategory(val category: CategoryType.Custom) : FilterOption()
+
+        companion object {
+            fun fromString(value: String): FilterOption {
+                return when (value.uppercase()) {
+                    "ALL" -> All
+                    "COMPLETED" -> Completed
+                    else -> All // Default to All if the string doesn't match
+                }
+            }
+        }
+
+        fun toStorageString(): String {
+            return when (this) {
+                is All -> "ALL"
+                is Completed -> "COMPLETED"
+                is Category -> "CATEGORY_${category.toString()}" // Assuming CategoryType has a meaningful toString() implementation
+                is CustomCategory -> "CUSTOM_CATEGORY_${category.displayName}"
+                // Add this else branch to make the 'when' expression exhaustive
+                else -> "UNKNOWN"
+            }
+        }
+    }
+
+    data class UserPreferences(
+        val defaultReminderTimeMinutes: Int = 15,
+        val notificationSound: String = "default"
+    )
 }
-
-
-enum class SortOption(val displayName: String) {
-    DUE_DATE("Due Date"),
-    TITLE("Title"),
-    COMPLETED("Completed"),
-    UNCOMPLETED("Uncompleted")
-}
-
-sealed class FilterOption {
-    object All : FilterOption()
-    data class Category(val category: CategoryType) : FilterOption()
-    object Completed : FilterOption()
-    data class CustomCategory(val category: CategoryType.Custom) : FilterOption()
-}
-
-data class UserPreferences(
-    val defaultReminderTimeMinutes: Int = 15,
-    val notificationSound: String = "default"
-)
-

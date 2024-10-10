@@ -19,6 +19,7 @@ fun SettingsScreen(
     var enablePushNotifications by remember { mutableStateOf(false) }
     var enableCalendarIntegration by remember { mutableStateOf(false) }
     var isPremium by remember { mutableStateOf(false) }
+    var isWidgetActive by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -76,6 +77,28 @@ fun SettingsScreen(
                 enabled = !isPremium
             ) {
                 Text(if (isPremium) "You are a Premium User" else "Upgrade to Premium")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    if (isPremium) {
+                        isWidgetActive = !isWidgetActive
+                        // TODO: Implement widget activation/deactivation
+                    }
+                },
+                enabled = isPremium
+            ) {
+                Text(if (isWidgetActive) "Deactivate Task Widget" else "Activate Task Widget")
+            }
+
+            if (!isPremium) {
+                Text(
+                    "Upgrade to Premium to use the Task Widget feature",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

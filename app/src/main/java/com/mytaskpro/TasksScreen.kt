@@ -25,12 +25,12 @@ import com.mytaskpro.R
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.Task
 import com.mytaskpro.ui.theme.*
-import com.mytaskpro.viewmodel.FilterOption
-import com.mytaskpro.viewmodel.SortOption
+import com.mytaskpro.viewmodel.TaskViewModel.FilterOption
 import com.mytaskpro.viewmodel.TaskAdditionStatus
 import com.mytaskpro.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.mytaskpro.viewmodel.TaskViewModel.SortOption
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
