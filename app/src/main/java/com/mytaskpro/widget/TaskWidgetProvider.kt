@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
@@ -19,6 +20,25 @@ class TaskWidgetProvider : AppWidgetProvider() {
         private const val TAG = "TaskWidgetProvider"
         const val ACTION_DATA_UPDATED = "com.mytaskpro.ACTION_DATA_UPDATED"
         private const val MAX_TASKS = 5 // Limit to 5 upcoming tasks
+    }
+
+    private val themeChangeReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_CONFIGURATION_CHANGED) {
+                forceUpdateAllWidgets(context)
+            }
+        }
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        val filter = IntentFilter(Intent.ACTION_CONFIGURATION_CHANGED)
+        context.applicationContext.registerReceiver(themeChangeReceiver, filter, Context.RECEIVER_EXPORTED)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        context.applicationContext.unregisterReceiver(themeChangeReceiver)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -38,12 +58,18 @@ class TaskWidgetProvider : AppWidgetProvider() {
         Log.d(TAG, "Forced widget update for ${appWidgetIds.size} widgets")
     }
 
+    private fun forceUpdateAllWidgets(context: Context) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(ComponentName(context, TaskWidgetProvider::class.java))
+        onUpdate(context, appWidgetManager, appWidgetIds)
+        Log.d(TAG, "Forced update for all widgets due to theme change")
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         Log.d(TAG, "onUpdate called for ${appWidgetIds.size} widgets")
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
-        forceWidgetUpdate(context)
     }
 
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
@@ -84,7 +110,8 @@ class TaskWidgetProvider : AppWidgetProvider() {
 
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
-            Log.d(TAG, "Widget $appWidgetId updated successfully")
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
+            Log.d(TAG, "Widget $appWidgetId updated successfully. Dark mode: $isDarkMode")
         } catch (e: Exception) {
             Log.e(TAG, "Error updating widget $appWidgetId", e)
         }
@@ -97,6 +124,8 @@ class TaskWidgetProvider : AppWidgetProvider() {
 
     private fun isDarkModeEnabled(context: Context): Boolean {
         val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        return uiMode == Configuration.UI_MODE_NIGHT_YES
+        val isDark = uiMode == Configuration.UI_MODE_NIGHT_YES
+        Log.d(TAG, "Dark mode check: $isDark")
+        return isDark
     }
 }
