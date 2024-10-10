@@ -15,7 +15,8 @@ class TaskWidgetRemoteViewsFactory(
     private val context: Context,
     private val taskDao: TaskDao,
     private val appWidgetId: Int,
-    currentTime: Long
+    currentTime: Long,
+    private val isDarkMode: Boolean
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var tasks: List<Task> = emptyList()
@@ -57,7 +58,8 @@ class TaskWidgetRemoteViewsFactory(
 
         return try {
             val task = tasks[position]
-            RemoteViews(context.packageName, R.layout.widget_task_item).apply {
+            val layoutId = if (isDarkMode) R.layout.widget_task_item_dark else R.layout.widget_task_item
+            RemoteViews(context.packageName, layoutId).apply {
                 setTextViewText(R.id.widget_task_title, task.title)
                 setTextViewText(R.id.widget_task_due_date, formatDateTime(task.dueDate))
             }

@@ -6,12 +6,13 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Bundle
 import android.util.Log
 import android.widget.RemoteViews
 import com.mytaskpro.MainActivity
 import com.mytaskpro.R
-
 
 class TaskWidgetProvider : AppWidgetProvider() {
     companion object {
@@ -48,12 +49,15 @@ class TaskWidgetProvider : AppWidgetProvider() {
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
         Log.d(TAG, "Updating widget $appWidgetId")
         try {
-            val views = RemoteViews(context.packageName, R.layout.task_widget_layout)
+            val isDarkMode = isDarkModeEnabled(context)
+            val layoutId = if (isDarkMode) R.layout.task_widget_layout_dark else R.layout.task_widget_layout
+            val views = RemoteViews(context.packageName, layoutId)
 
             // Set up the RemoteViews object to use TaskWidgetService
             val intent = Intent(context, TaskWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 putExtra("MAX_TASKS", MAX_TASKS)
+                putExtra("IS_DARK_MODE", isDarkMode)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list_view, intent)
@@ -84,5 +88,15 @@ class TaskWidgetProvider : AppWidgetProvider() {
         } catch (e: Exception) {
             Log.e(TAG, "Error updating widget $appWidgetId", e)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        updateAppWidget(context, appWidgetManager, appWidgetId)
+    }
+
+    private fun isDarkModeEnabled(context: Context): Boolean {
+        val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return uiMode == Configuration.UI_MODE_NIGHT_YES
     }
 }

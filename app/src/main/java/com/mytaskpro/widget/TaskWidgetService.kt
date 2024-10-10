@@ -29,9 +29,10 @@ class TaskWidgetService : RemoteViewsService() {
                 android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID
             )
             val currentTime = System.currentTimeMillis()
+            val isDarkMode = intent.getBooleanExtra("IS_DARK_MODE", false)
 
-            Log.d(TAG, "Creating TaskWidgetRemoteViewsFactory for widget ID: $appWidgetId")
-            TaskWidgetRemoteViewsFactory(applicationContext, taskDao, appWidgetId, currentTime)
+            Log.d(TAG, "Creating TaskWidgetRemoteViewsFactory for widget ID: $appWidgetId, Dark Mode: $isDarkMode")
+            TaskWidgetRemoteViewsFactory(applicationContext, taskDao, appWidgetId, currentTime, isDarkMode)
         } catch (e: Exception) {
             Log.e(TAG, "Error creating RemoteViewsFactory", e)
             // Return a dummy factory in case of error
