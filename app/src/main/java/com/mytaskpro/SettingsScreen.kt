@@ -52,14 +52,21 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             GeneralSettingsSection(settingsViewModel)
+            Spacer(modifier = Modifier.height(16.dp))
             NotificationSettingsSection(settingsViewModel)
+            Spacer(modifier = Modifier.height(16.dp))
             SyncSection(taskViewModel, settingsViewModel, isUserSignedIn, onGoogleSignIn, onSignOut)
+            Spacer(modifier = Modifier.height(16.dp))
             WidgetCustomizationSection(settingsViewModel)
-            DataManagementSection(settingsViewModel)
+            Spacer(modifier = Modifier.height(16.dp))
+            PremiumSubscriptionSection(settingsViewModel) // Replace DataManagementSection with this
+            Spacer(modifier = Modifier.height(16.dp))
             FeedbackSection(settingsViewModel)
+            Spacer(modifier = Modifier.height(16.dp))
             AboutSection(settingsViewModel)
         }
     }
@@ -93,7 +100,7 @@ fun SyncSection(
     isUserSignedIn: Boolean,
     onGoogleSignIn: () -> Unit,
     onSignOut: () -> Unit,
-    showDebugButtons: Boolean = false // Use this parameter
+    showDebugButtons: Boolean = false
 ) {
     val coroutineScope = rememberCoroutineScope()
     val syncStatus by rememberUpdatedState(settingsViewModel.syncStatus.collectAsState().value)
@@ -129,12 +136,12 @@ fun SyncSection(
                         Text(
                             text = "Last synced: ${lastSyncTime ?: "Never"}",
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
                         if (isSyncing) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -147,10 +154,10 @@ fun SyncSection(
                                         "Sync completed successfully",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.padding(vertical = 8.dp)
                                     )
                                     LaunchedEffect(Unit) {
-                                        delay(3000) // Show success message for 3 seconds
+                                        delay(3000)
                                         settingsViewModel.resetSyncStatus()
                                     }
                                 }
@@ -166,9 +173,10 @@ fun SyncSection(
                                                     settingsViewModel.startSync()
                                                     taskViewModel.syncTasksWithFirebase()
                                                     delay(1000)
-                                                    settingsViewModel.endSync(true) // Assuming success, adjust as needed
+                                                    settingsViewModel.endSync(true)
                                                 }
                                             }
+                                            .padding(vertical = 8.dp)
                                     )
                                 }
                                 SettingsViewModel.SyncStatus.Idle -> {
@@ -178,10 +186,10 @@ fun SyncSection(
                                                 settingsViewModel.startSync()
                                                 taskViewModel.syncTasksWithFirebase()
                                                 delay(1000)
-                                                settingsViewModel.endSync(true) // Assuming success, adjust as needed
+                                                settingsViewModel.endSync(true)
                                             }
                                         },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                                     ) {
                                         Text("Sync Now")
                                     }
@@ -192,41 +200,40 @@ fun SyncSection(
                             }
                         }
                     }
-                    TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Text("Sign Out")
                     }
                 } else {
-                    TextButton(onClick = onGoogleSignIn, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onGoogleSignIn, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Text("Sign in with Google")
                     }
                 }
 
-                // Show debug buttons only if showDebugButtons is true
                 if (showDebugButtons) {
                     TextButton(
                         onClick = {
                             forceUpdate++
                             settingsViewModel.triggerForceRefresh()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     ) {
                         Text("Force UI Refresh")
                     }
                     TextButton(
                         onClick = { settingsViewModel.startSync() },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     ) {
                         Text("Debug: Start Sync")
                     }
                     TextButton(
                         onClick = { settingsViewModel.endSync(true) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     ) {
                         Text("Debug: End Sync (Success)")
                     }
                     TextButton(
                         onClick = { settingsViewModel.endSync(false) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                     ) {
                         Text("Debug: End Sync (Error)")
                     }
@@ -235,7 +242,6 @@ fun SyncSection(
         }
     }
 }
-
 
 @Composable
 fun WidgetCustomizationSection(viewModel: SettingsViewModel) {
@@ -246,18 +252,47 @@ fun WidgetCustomizationSection(viewModel: SettingsViewModel) {
 }
 
 @Composable
-fun DataManagementSection(viewModel: SettingsViewModel) {
-    SettingsSection(title = "Data Management") {
+fun PremiumSubscriptionSection(viewModel: SettingsViewModel) {
+    SettingsSection(title = "Premium Subscription") {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = { viewModel.exportData() }) {
-                Text("Export Data")
+            Icon(
+                imageVector = Icons.Default.Diamond,
+                contentDescription = "Premium",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = "Upgrade to Premium",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Unlock advanced features and sync across devices",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            TextButton(onClick = { viewModel.importData() }) {
-                Text("Import Data")
-            }
+        }
+        Button(
+            onClick = { /* Implement subscription logic */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Text("Subscribe Now")
+        }
+        TextButton(
+            onClick = { /* Implement restore purchases logic */ },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Restore Purchases")
         }
     }
 }
@@ -266,7 +301,7 @@ fun DataManagementSection(viewModel: SettingsViewModel) {
 fun FeedbackSection(viewModel: SettingsViewModel) {
     SettingsSection(title = "Feedback") {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             TextButton(onClick = { viewModel.provideFeedback() }) {
@@ -282,11 +317,15 @@ fun FeedbackSection(viewModel: SettingsViewModel) {
 @Composable
 fun AboutSection(viewModel: SettingsViewModel) {
     SettingsSection(title = "About") {
-        Text("Version: ${viewModel.appVersion.collectAsState().value}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth())
-        TextButton(onClick = { /* Open privacy policy */ }, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "Version: ${viewModel.appVersion.collectAsState().value}",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        )
+        TextButton(onClick = { /* Open privacy policy */ }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text("Privacy Policy")
         }
-        TextButton(onClick = { /* Open terms of service */ }, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { /* Open terms of service */ }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text("Terms of Service")
         }
     }
@@ -295,17 +334,22 @@ fun AboutSection(viewModel: SettingsViewModel) {
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         content()
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        Divider(modifier = Modifier.padding(top = 16.dp))
     }
 }
 
 @Composable
 fun SwitchSetting(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -318,7 +362,9 @@ fun SwitchSetting(title: String, checked: Boolean, onCheckedChange: (Boolean) ->
 fun DropdownSetting(title: String, selected: String, options: List<String>, onSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -350,7 +396,7 @@ fun TimeSetting(title: String, time: LocalTime, onTimeSelected: (LocalTime) -> U
 
 @Composable
 fun SliderSetting(title: String, value: Int, range: ClosedFloatingPointRange<Float>, onValueChange: (Float) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
         Slider(
             value = value.toFloat(),
@@ -364,7 +410,10 @@ fun SliderSetting(title: String, value: Int, range: ClosedFloatingPointRange<Flo
 
 @Composable
 fun PremiumFeatureTeaser(feature: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
         Icon(Icons.Default.Lock, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
         Text("$feature (Premium)", style = MaterialTheme.typography.bodyMedium)
