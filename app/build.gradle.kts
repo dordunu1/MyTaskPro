@@ -4,6 +4,8 @@ plugins {
     id("kotlin-kapt")
     id("dagger.hilt.android.plugin")
     id("kotlin-parcelize")
+    id("com.google.gms.google-services")
+
 }
 
 android {
@@ -11,7 +13,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.mytaskpro"
+        applicationId = "com.mytaskpro"
         minSdk = 29
         targetSdk = 34
         versionCode = 1
@@ -83,7 +85,14 @@ dependencies {
     implementation ("androidx.camera:camera-camera2:1.2.3")
 
 
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
 
+    // Google Sign-In (add these)
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
 
     // ML Kit for text recognition
     implementation("com.google.mlkit:text-recognition:16.0.0")
@@ -91,6 +100,8 @@ dependencies {
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.44")
+    implementation ("com.google.dagger:hilt-android:2.44")
+    implementation(libs.androidx.hilt.common)
     kapt("com.google.dagger:hilt-android-compiler:2.44")
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 

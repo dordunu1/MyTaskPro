@@ -8,6 +8,8 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Label
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
@@ -32,10 +34,15 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
-import com.mytaskpro.viewmodel.TaskViewModel.SortOption
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.firebase.auth.AuthResult
+import com.google.firebase.auth.FirebaseUser
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -43,11 +50,20 @@ class TaskViewModel @Inject constructor(
     private val taskDao: TaskDao,
     private val noteRepository: NoteRepository,
     private val storageManager: StorageManager,
-    private val workManager: WorkManager
+    private val firebaseTaskRepository: FirebaseTaskRepository,
+    private val workManager: WorkManager,
+    private val firebaseAuth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) : AndroidViewModel(application as Application) {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    private fun getUserTasksCollection(userId: String) =
+        firestore.collection("users").document(userId).collection("tasks")
 
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
     val notes: StateFlow<List<Note>> = _notes.asStateFlow()
@@ -66,11 +82,14 @@ class TaskViewModel @Inject constructor(
     private val _completedTaskCount = MutableStateFlow(0)
     val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
 
+    private val _isUserSignedIn = MutableStateFlow(false)
+    val isUserSignedIn: StateFlow<Boolean> = _isUserSignedIn
+
     private val updateWidgetJob = Job()
     private val updateWidgetScope = CoroutineScope(Dispatchers.Default + updateWidgetJob)
 
-    private val _customCategories = MutableStateFlow<List<CategoryType.Custom>>(emptyList())
-    val customCategories: StateFlow<List<CategoryType.Custom>> = _customCategories.asStateFlow()
+    private val _customCategories = MutableStateFlow<List<CategoryType>>(emptyList())
+    val customCategories: StateFlow<List<CategoryType>> = _customCategories.asStateFlow()
 
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(CategoryType::class.java, CategoryTypeAdapter())
@@ -87,8 +106,8 @@ class TaskViewModel @Inject constructor(
                 is FilterOption.All -> true
                 is FilterOption.Category -> task.category == filter.category && !task.isCompleted
                 is FilterOption.Completed -> task.isCompleted
-                is FilterOption.CustomCategory -> (task.category as? CategoryType.Custom)?.displayName == filter.category.displayName && !task.isCompleted
-                else -> true
+                is FilterOption.CustomCategory -> (task.category as? CategoryType)?.displayName == filter.category.displayName && !task.isCompleted
+                else -> false // This covers any potential future FilterOption subclasses
             }
         }.sortedWith { a, b ->
             when (sort) {
@@ -101,12 +120,17 @@ class TaskViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        loadData()
         loadNotes()
         loadUserPreferences()
         loadCustomCategories()
         observeTasks()
         observeNotes()
+        checkUserSignInStatus()
+    }
+
+    private fun checkUserSignInStatus() {
+        _isUserSignedIn.value = firebaseAuth.currentUser != null
+        _currentUser.value = firebaseAuth.currentUser
     }
 
     fun getTaskById(id: Int): Flow<Task?> {
@@ -115,22 +139,42 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    fun createCustomCategory(name: String) {
-        val newCategory = CategoryType.Custom(name, CategoryType.generateRandomColor())
-        _customCategories.value = _customCategories.value + newCategory
-        saveCustomCategories()
+    fun createCustomCategory(categoryName: String) {
+        viewModelScope.launch {
+            val newCategory = CategoryType("CUSTOM", categoryName, Icons.Default.Label, CategoryType.generateRandomColor())
+            _customCategories.value = _customCategories.value + newCategory
+            // You might also want to save this to a local database or Firebase
+            // depending on your app's architecture
+        }
     }
 
-    private fun saveCustomCategories() {
+    private fun loadNotes() {
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            "MyTaskProPrefs",
+            Context.MODE_PRIVATE
+        )
+        val notesJson = sharedPrefs.getString("notes", null)
+        if (notesJson != null) {
+            val type = object : TypeToken<List<Note>>() {}.type
+            val loadedNotes = Gson().fromJson<List<Note>>(notesJson, type)
+            _notes.value = loadedNotes
+            Log.d("TaskViewModel", "Notes loaded: $loadedNotes")
+        } else {
+            Log.d("TaskViewModel", "No saved notes found")
+        }
+    }
+
+    private fun loadUserPreferences() {
         viewModelScope.launch {
-            val customCategoriesJson = gson.toJson(_customCategories.value)
-            getApplication<Application>().getSharedPreferences(
-                "MyTaskProPrefs",
-                Context.MODE_PRIVATE
-            )
-                .edit()
-                .putString("customCategories", customCategoriesJson)
-                .apply()
+            val savedSortOption = storageManager.getStringPreference("sortOption", SortOption.DUE_DATE.name)
+            _sortOption.value = try {
+                SortOption.valueOf(savedSortOption)
+            } catch (e: IllegalArgumentException) {
+                SortOption.DUE_DATE
+            }
+
+            val savedFilterOption = storageManager.getStringPreference("filterOption", FilterOption.All.toStorageString())
+            _filterOption.value = FilterOption.fromString(savedFilterOption)
         }
     }
 
@@ -141,9 +185,9 @@ class TaskViewModel @Inject constructor(
         )
         val customCategoriesJson = sharedPrefs.getString("customCategories", null)
         if (customCategoriesJson != null) {
-            val type = object : TypeToken<List<CategoryType.Custom>>() {}.type
+            val type = object : TypeToken<List<CategoryType>>() {}.type
             val loadedCategories =
-                gson.fromJson<List<CategoryType.Custom>>(customCategoriesJson, type)
+                gson.fromJson<List<CategoryType>>(customCategoriesJson, type)
             _customCategories.value = loadedCategories
         }
     }
@@ -166,26 +210,6 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    private fun loadData() {
-        loadNotes()
-    }
-
-    private fun loadNotes() {
-        val sharedPrefs = getApplication<Application>().getSharedPreferences(
-            "MyTaskProPrefs",
-            Context.MODE_PRIVATE
-        )
-        val notesJson = sharedPrefs.getString("notes", null)
-        if (notesJson != null) {
-            val type = object : TypeToken<List<Note>>() {}.type
-            val loadedNotes = Gson().fromJson<List<Note>>(notesJson, type)
-            _notes.value = loadedNotes
-            Log.d("TaskViewModel", "Notes loaded: $loadedNotes")
-        } else {
-            Log.d("TaskViewModel", "No saved notes found")
-        }
-    }
-
     private fun saveNotes() {
         val sharedPrefs = getApplication<Application>().getSharedPreferences(
             "MyTaskProPrefs",
@@ -196,36 +220,95 @@ class TaskViewModel @Inject constructor(
         Log.d("TaskViewModel", "Notes saved: ${_notes.value}")
     }
 
-    private fun loadUserPreferences() {
-        viewModelScope.launch {
-            // Load individual preferences as needed
-            val savedSortOption = storageManager.getStringPreference("sortOption", SortOption.DUE_DATE.name)
-            _sortOption.value = try {
-                SortOption.valueOf(savedSortOption)
-            } catch (e: IllegalArgumentException) {
-                SortOption.DUE_DATE
-            }
-
-            val savedFilterOption = storageManager.getStringPreference("filterOption", FilterOption.All.toStorageString())
-            _filterOption.value = FilterOption.fromString(savedFilterOption)
-
-            // Load other preferences as needed
-        }
-    }
-
     private fun saveUserPreferences() {
         viewModelScope.launch {
-            // Save individual preferences
             storageManager.savePreference("sortOption", _sortOption.value.name)
             storageManager.savePreference("filterOption", _filterOption.value.toStorageString())
-            // Save other preferences as needed
         }
     }
 
-    fun showCompletedTasks() {
-        _filterOption.value = FilterOption.Completed
+    fun signInWithGoogle(googleSignInAccount: GoogleSignInAccount, onComplete: (AuthResult?) -> Unit) {
+        val credential = GoogleAuthProvider.getCredential(googleSignInAccount.idToken, null)
+        firebaseAuth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _isUserSignedIn.value = true
+                    _currentUser.value = firebaseAuth.currentUser
+                    viewModelScope.launch {
+                        syncTasksWithFirebase()
+                    }
+                }
+                onComplete(task.result)
+            }
     }
 
+    fun signOut() {
+        firebaseAuth.signOut()
+        _isUserSignedIn.value = false
+        _currentUser.value = null
+    }
+
+    suspend fun syncTasksWithFirebase() {
+        val userId = firebaseAuth.currentUser?.uid ?: run {
+            Log.e("Firebase", "User not authenticated")
+            return
+        }
+
+        try {
+            val userTasksCollection = getUserTasksCollection(userId)
+
+            // Fetch local tasks
+            val localTasks = taskDao.getAllTasksAsList()
+
+            // Upload local tasks
+            localTasks.forEach { task ->
+                userTasksCollection.document(task.id.toString())
+                    .set(task)
+                    .await() // Ensure each upload completes before moving on
+            }
+
+            // Fetch remote tasks
+            val remoteTasks = userTasksCollection
+                .get()
+                .await()
+                .toObjects(Task::class.java)
+
+            // Merge local and remote tasks with conflict resolution
+            val mergedTasks = mergeTasks(localTasks, remoteTasks)
+
+            // Update local database
+            taskDao.deleteAllTasks()
+            taskDao.insertTasks(mergedTasks)
+
+            // Update UI state
+            _tasks.value = mergedTasks
+
+            Log.d("Firebase", "Sync completed successfully")
+        } catch (e: Exception) {
+            Log.e("Firebase", "Sync failed", e)
+            // You might want to notify the user about the sync failure
+            // For example, update a UI state or show a toast
+        }
+    }
+
+    private fun mergeTasks(localTasks: List<Task>, remoteTasks: List<Task>): List<Task> {
+        val mergedTasks = mutableMapOf<Int, Task>()
+
+        // Add all local tasks
+        localTasks.forEach { mergedTasks[it.id] = it }
+
+        // Merge remote tasks, resolving conflicts
+        remoteTasks.forEach { remoteTask ->
+            val localTask = mergedTasks[remoteTask.id]
+            if (localTask == null || remoteTask.lastModified > localTask.lastModified) {
+                mergedTasks[remoteTask.id] = remoteTask
+            }
+        }
+
+        return mergedTasks.values.toList()
+    }
+
+    // Override existing addTask function
     fun addTask(
         title: String,
         description: String,
@@ -260,6 +343,16 @@ class TaskViewModel @Inject constructor(
                         scheduleRepetitiveTask(insertedTask)
                     }
                     updateWidget()
+
+                    // Sync with Firebase
+                    if (isUserSignedIn.value) {
+                        val userId = firebaseAuth.currentUser?.uid
+                        if (userId != null) {
+                            firestore.collection("users").document(userId)
+                                .collection("tasks").document(insertedTask.id.toString())
+                                .set(insertedTask)
+                        }
+                    }
                 } else {
                     Log.e("TaskViewModel", "Failed to retrieve inserted task")
                     _taskAdditionStatus.value = TaskAdditionStatus.Error
@@ -271,6 +364,7 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    // Override existing updateTask function
     fun updateTask(
         taskId: Int,
         title: String,
@@ -300,6 +394,42 @@ class TaskViewModel @Inject constructor(
                 cancelRepetitiveTask(taskId)
             }
             updateWidget()
+
+            // Sync with Firebase
+            if (isUserSignedIn.value) {
+                val userId = firebaseAuth.currentUser?.uid
+                if (userId != null) {
+                    firestore.collection("users").document(userId)
+                        .collection("tasks").document(taskId.toString())
+                        .set(updatedTask)
+                }
+            }
+        }
+    }
+
+
+    // Override existing deleteTask function
+    fun deleteTask(taskId: Int) {
+        viewModelScope.launch {
+            val task = taskDao.getTaskById(taskId)
+            if (task != null) {
+                taskDao.deleteTask(task)
+                workManager.cancelUniqueWork("reminder_$taskId")
+                cancelRepetitiveTask(taskId)
+                updateWidget()
+
+                // Sync with Firebase
+                if (isUserSignedIn.value) {
+                    val userId = firebaseAuth.currentUser?.uid
+                    if (userId != null) {
+                        firestore.collection("users").document(userId)
+                            .collection("tasks").document(taskId.toString())
+                            .delete()
+                    }
+                }
+            } else {
+                Log.e("TaskViewModel", "Task not found for deletion: $taskId")
+            }
         }
     }
 
@@ -515,20 +645,6 @@ class TaskViewModel @Inject constructor(
                 _completedTaskCount.value -= 1
             }
             updateWidget()
-        }
-    }
-
-    fun deleteTask(taskId: Int) {
-        viewModelScope.launch {
-            val task = taskDao.getTaskById(taskId)
-            if (task != null) {
-                taskDao.deleteTask(task)
-                workManager.cancelUniqueWork("reminder_$taskId")
-                cancelRepetitiveTask(taskId)
-                updateWidget()
-            } else {
-                Log.e("TaskViewModel", "Task not found for deletion: $taskId")
-            }
         }
     }
 
@@ -777,14 +893,14 @@ class TaskViewModel @Inject constructor(
         object All : FilterOption()
         data class Category(val category: CategoryType) : FilterOption()
         object Completed : FilterOption()
-        data class CustomCategory(val category: CategoryType.Custom) : FilterOption()
+        data class CustomCategory(val category: CategoryType) : FilterOption()
 
         companion object {
             fun fromString(value: String): FilterOption {
                 return when (value.uppercase()) {
                     "ALL" -> All
                     "COMPLETED" -> Completed
-                    else -> All // Default to All if the string doesn't match
+                    else -> All
                 }
             }
         }
@@ -793,10 +909,9 @@ class TaskViewModel @Inject constructor(
             return when (this) {
                 is All -> "ALL"
                 is Completed -> "COMPLETED"
-                is Category -> "CATEGORY_${category.toString()}" // Assuming CategoryType has a meaningful toString() implementation
+                is Category -> "CATEGORY_${category.toString()}"
                 is CustomCategory -> "CUSTOM_CATEGORY_${category.displayName}"
-                // Add this else branch to make the 'when' expression exhaustive
-                else -> "UNKNOWN"
+                else -> "UNKNOWN" // This covers any potential future FilterOption subclasses
             }
         }
     }

@@ -23,11 +23,10 @@ import androidx.navigation.navArgument
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.ui.components.ThemeSelectionDialog
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.DateRange
-import com.mytaskpro.SettingsScreen
 import com.mytaskpro.data.CategoryType
 import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @ExperimentalMaterial3Api
 @Composable
@@ -35,9 +34,11 @@ fun MainScreen(
     navController: NavController,
     taskViewModel: TaskViewModel,
     themeViewModel: ThemeViewModel,
+    isUserSignedIn: Boolean,
+    onSettingsClick: () -> Unit,
     onTaskClick: (Int) -> Unit
 ) {
-    val navController = rememberNavController()
+    val innerNavController = rememberNavController()
     var showThemeDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -50,7 +51,7 @@ fun MainScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text("MyTaskPro")
-                            IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                            IconButton(onClick = onSettingsClick) {
                                 Icon(
                                     imageVector = Icons.Default.Settings,
                                     contentDescription = "Settings",
@@ -70,7 +71,7 @@ fun MainScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
                     val currentDestination = navBackStackEntry?.destination
                     listOf(
                         Screen.Tasks,
@@ -81,8 +82,8 @@ fun MainScreen(
                             label = { Text(screen.label) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
+                                innerNavController.navigate(screen.route) {
+                                    popUpTo(innerNavController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
                                     launchSingleTop = true
@@ -102,7 +103,7 @@ fun MainScreen(
             }
         ) { innerPadding ->
             NavHost(
-                navController = navController,
+                navController = innerNavController,
                 startDestination = Screen.Tasks.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
@@ -111,7 +112,7 @@ fun MainScreen(
                         viewModel = taskViewModel,
                         onTaskClick = onTaskClick,
                         onEditTask = { taskId ->
-                            navController.navigate("taskDetail/$taskId?edit=true")
+                            innerNavController.navigate("${Screen.EditTask.route}/$taskId")
                         }
                     )
                 }
@@ -128,7 +129,7 @@ fun MainScreen(
                     EditTaskScreen(
                         taskId = taskId,
                         viewModel = taskViewModel,
-                        onNavigateBack = { navController.popBackStack() }
+                        onNavigateBack = { innerNavController.popBackStack() }
                     )
                 }
 
@@ -140,7 +141,7 @@ fun MainScreen(
                     EditNoteScreen(
                         viewModel = taskViewModel,
                         noteId = noteId,
-                        onNavigateBack = { navController.popBackStack() }
+                        onNavigateBack = { innerNavController.popBackStack() }
                     )
                 }
 
@@ -152,12 +153,8 @@ fun MainScreen(
                     NoteDetailScreen(
                         viewModel = taskViewModel,
                         noteId = noteId,
-                        navController = navController
+                        navController = innerNavController
                     )
-                }
-
-                composable(Screen.Settings.route) {
-                    SettingsScreen(onNavigateBack = { navController.popBackStack() })
                 }
             }
         }
@@ -207,6 +204,7 @@ fun EditTaskScreen(taskId: Int, viewModel: TaskViewModel, onNavigateBack: () -> 
         var dueDate by remember { mutableStateOf(nonNullTask.dueDate) }
         var category by remember { mutableStateOf(nonNullTask.category) }
         var expanded by remember { mutableStateOf(false) }
+
 
         Column(
             modifier = Modifier
@@ -309,6 +307,7 @@ fun EditTaskScreen(taskId: Int, viewModel: TaskViewModel, onNavigateBack: () -> 
         Text("Task not found")
     }
 }
+
 
     @Composable
     fun EditNoteScreen(viewModel: TaskViewModel, noteId: Int, onNavigateBack: () -> Unit) {

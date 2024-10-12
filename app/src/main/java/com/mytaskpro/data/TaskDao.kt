@@ -19,7 +19,7 @@ interface TaskDao {
     suspend fun insertTask(task: Task): Long
 
     @Delete
-    suspend fun deleteTask(task: Task)
+    suspend fun deleteTask(task: Task?)
 
     @Query("SELECT * FROM tasks WHERE isCompleted = 0")
     fun getPendingTasks(): Flow<List<Task>>
@@ -69,4 +69,25 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE dueDate > :currentDate AND isCompleted = 0 ORDER BY dueDate ASC LIMIT :limit")
     suspend fun getUpcomingTasks(limit: Int, currentDate: Date): List<Task>
+
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksAsList(): List<Task>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTasks(tasks: List<Task>)
+
+    @Query("DELETE FROM tasks")
+    suspend fun deleteAllTasks()
+
+    @Query("DELETE FROM tasks WHERE id = :taskId")
+    suspend fun deleteTaskById(taskId: Int)
+
+    @Transaction
+    suspend fun replaceAllTasks(tasks: List<Task>) {
+        deleteAllTasks()
+        insertTasks(tasks)
+    }
+
+    @Query("SELECT * FROM tasks WHERE lastModified > :lastSyncTime")
+    suspend fun getTasksModifiedSince(lastSyncTime: Long): List<Task>
 }

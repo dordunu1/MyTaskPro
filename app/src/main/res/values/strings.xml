@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">My Application</string>
     <string name="refresh_tasks">Refresh tasks</string>
+    <string name="default_web_client_id">244941185460-3937f7tc824uu8dm41i2ns08mlk0lsdn.apps.googleusercontent.com</string>
 </resources>

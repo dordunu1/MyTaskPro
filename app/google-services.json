@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "244941185460",
+    "project_id": "chris-wilder-28071738",
+    "storage_bucket": "chris-wilder-28071738.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:244941185460:android:d76bbc97e70f608b2292e1",
+        "android_client_info": {
+          "package_name": "com.mytaskpro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "244941185460-vtpm77q2ba6o5bc42hnsfg51n7h563lo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mytaskpro",
+            "certificate_hash": "a4999c2d7efa69b3cb5009dc31868ccc40a9c624"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaGUZmTASq5hE7EEEZqGCvidfn7SsoUsM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

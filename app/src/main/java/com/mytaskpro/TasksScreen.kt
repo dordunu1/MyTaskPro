@@ -227,23 +227,11 @@ fun TaskItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                when (task.category) {
-                    is CategoryType.Custom -> {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .background(task.categoryColor, CircleShape)
-                        )
-                    }
-                    else -> {
-                        Icon(
-                            task.category.icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Color(task.category.color), CircleShape)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -361,7 +349,7 @@ fun FilterAndSortBar(
     completedTaskCount: Int,
     onFilterChanged: (FilterOption) -> Unit,
     onSortChanged: (SortOption) -> Unit,
-    customCategories: List<CategoryType.Custom>
+    customCategories: List<CategoryType>
 ) {
     Row(
         modifier = Modifier
@@ -387,7 +375,7 @@ fun FilterDropdown(
     selectedOption: FilterOption,
     onOptionSelected: (FilterOption) -> Unit,
     completedTaskCount: Int,
-    customCategories: List<CategoryType.Custom>
+    customCategories: List<CategoryType>
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -419,7 +407,7 @@ fun FilterDropdown(
                 }
             )
             CategoryType.values().forEach { category ->
-                if (category != CategoryType.COMPLETED) {
+                if (category.type != "COMPLETED") {
                     DropdownMenuItem(
                         text = { Text(category.displayName) },
                         onClick = {
@@ -427,7 +415,11 @@ fun FilterDropdown(
                             expanded = false
                         },
                         leadingIcon = {
-                            Icon(category.icon, contentDescription = null)
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color(category.color), CircleShape)
+                            )
                         }
                     )
                 }
@@ -443,7 +435,7 @@ fun FilterDropdown(
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
-                                .background(category.color, CircleShape)
+                                .background(Color(category.color), CircleShape)
                         )
                     }
                 )
@@ -461,7 +453,6 @@ fun FilterDropdown(
         }
     }
 }
-
 
 @Composable
 fun SortDropdown(

@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mytaskpro.ui.MainScreen
 import com.mytaskpro.ui.TaskDetailScreen
+import com.mytaskpro.SettingsScreen
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 
@@ -16,7 +17,10 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 @Composable
 fun AppNavigation(
     taskViewModel: TaskViewModel,
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    isUserSignedIn: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onSignOut: () -> Unit
 ) {
     val navController = rememberNavController()
 
@@ -26,9 +30,21 @@ fun AppNavigation(
                 navController = navController,
                 taskViewModel = taskViewModel,
                 themeViewModel = themeViewModel,
+                isUserSignedIn = isUserSignedIn,
+                onSettingsClick = { navController.navigate("settings") },
                 onTaskClick = { taskId ->
                     navController.navigate("taskDetail/$taskId")
                 }
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
+                taskViewModel = taskViewModel,
+                themeViewModel = themeViewModel,
+                onBackClick = { navController.popBackStack() },
+                isUserSignedIn = isUserSignedIn,
+                onGoogleSignIn = onGoogleSignIn,
+                onSignOut = onSignOut
             )
         }
         composable(
@@ -47,6 +63,5 @@ fun AppNavigation(
                 isEditing = isEditing
             )
         }
-        // Remove the editTask route
     }
 }

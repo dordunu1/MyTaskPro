@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mytaskpro.ui.MainScreen
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.mytaskpro.ui.theme.MyTaskProTheme
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
@@ -26,9 +30,26 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var taskViewModel: TaskViewModel
+    private lateinit var googleSignInClient: GoogleSignInClient
 
     companion object {
         private const val MANAGE_EXTERNAL_STORAGE_REQUEST_CODE = 1001
+    }
+
+    private val signInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            taskViewModel.signInWithGoogle(account) { authResult ->
+                if (authResult != null && authResult.user != null) {
+                    Toast.makeText(this, "Google Sign-In Successful", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Google Sign-In Failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(this, "Google Sign-In Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +57,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         taskViewModel = ViewModelProvider(this)[TaskViewModel::class.java]
+
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         setContent {
             MyTaskProApp()
@@ -51,6 +78,7 @@ class MainActivity : ComponentActivity() {
         taskViewModel: TaskViewModel = viewModel()
     ) {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
+        val isUserSignedIn by taskViewModel.isUserSignedIn.collectAsState()
 
         MyTaskProTheme(appTheme = currentTheme) {
             Surface(
@@ -60,7 +88,15 @@ class MainActivity : ComponentActivity() {
                 NotificationPermissionHandler()
                 AppNavigation(
                     taskViewModel = taskViewModel,
-                    themeViewModel = themeViewModel
+                    themeViewModel = themeViewModel,
+                    isUserSignedIn = isUserSignedIn,
+                    onGoogleSignIn = { signIn() },
+                    onSignOut = {
+                        taskViewModel.signOut()
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            Toast.makeText(this@MainActivity, "Signed out", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
         }
@@ -125,16 +161,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun signIn() {
+        val signInIntent = googleSignInClient.signInIntent
+        signInLauncher.launch(signInIntent)
+    }
+
     private fun requestManageExternalStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.addCategory("android.intent.category.DEFAULT")
-                intent.data = Uri.parse("package:${applicationContext.packageName}")
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    addCategory("android.intent.category.DEFAULT")
+                    data = Uri.parse("package:${applicationContext.packageName}")
+                }
                 startActivityForResult(intent, MANAGE_EXTERNAL_STORAGE_REQUEST_CODE)
             } catch (e: Exception) {
-                val intent = Intent()
-                intent.action = Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                 startActivityForResult(intent, MANAGE_EXTERNAL_STORAGE_REQUEST_CODE)
             }
         }

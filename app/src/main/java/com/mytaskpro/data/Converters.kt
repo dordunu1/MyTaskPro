@@ -1,7 +1,5 @@
 package com.mytaskpro.data
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -45,28 +43,23 @@ class Converters {
     }
 
     @TypeConverter
-    fun fromColor(color: Color): Long = color.toArgb().toLong()
+    fun fromColor(color: Int): String = color.toString()
 
     @TypeConverter
-    fun toColor(value: Long): Color = Color(value.toInt())
+    fun toColor(value: String): Int = value.toInt()
 
     @TypeConverter
     fun fromCategoryType(category: CategoryType): String {
-        return when (category) {
-            is CategoryType.Custom -> "CUSTOM:${category.displayName}:${fromColor(category.color)}"
-            else -> gson.toJson(category)
-        }
+        return "${category.type}:${category.displayName}:${category.color}"
     }
 
     @TypeConverter
     fun toCategoryType(value: String): CategoryType {
-        return if (value.startsWith("CUSTOM:")) {
-            val parts = value.split(":")
-            val name = parts[1]
-            val color = toColor(parts[2].toLong())
-            CategoryType.Custom(name, color)
-        } else {
-            gson.fromJson(value, CategoryType::class.java)
-        }
+        val parts = value.split(":")
+        return CategoryType(
+            type = parts[0],
+            displayName = parts[1],
+            color = parts[2].toInt()
+        )
     }
 }

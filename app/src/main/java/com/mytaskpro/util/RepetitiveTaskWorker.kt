@@ -1,26 +1,25 @@
 package com.mytaskpro.util
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
-import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.mytaskpro.StorageManager
-import com.mytaskpro.data.NoteDao
-import com.mytaskpro.data.NoteRepository
+import com.mytaskpro.data.FirebaseTaskRepository
+import com.mytaskpro.data.Task
 import com.mytaskpro.data.TaskDao
 import com.mytaskpro.ui.RepetitionType
-import com.mytaskpro.viewmodel.TaskViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
-import javax.inject.Inject
 
-class RepetitiveTaskWorker @Inject constructor(
-    @ApplicationContext context: Context,
-    params: WorkerParameters,
+@HiltWorker
+class RepetitiveTaskWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
     private val taskDao: TaskDao,
-    private val noteDao: NoteDao
+    private val firebaseTaskRepository: FirebaseTaskRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -50,15 +49,12 @@ class RepetitiveTaskWorker @Inject constructor(
                 )
                 taskDao.insertTask(newTask)
 
+                // Sync the new task with Firebase
+                firebaseTaskRepository.syncTasks(listOf(newTask))
+
                 // Schedule the next repetition
-                val taskViewModel = TaskViewModel(
-                    applicationContext,
-                    taskDao,
-                    NoteRepository(noteDao),
-                    StorageManager(applicationContext),
-                    WorkManager.getInstance(applicationContext)
-                )
-                taskViewModel.scheduleRepetitiveTask(newTask)
+                // Note: We're not using TaskViewModel here to avoid circular dependencies
+                scheduleNextRepetition(newTask)
             }
 
             Result.success()
@@ -90,5 +86,10 @@ class RepetitiveTaskWorker @Inject constructor(
         }
 
         return calendar.time
+    }
+
+    private fun scheduleNextRepetition(task: Task) {
+        // Implement the logic to schedule the next repetition
+        // This might involve creating a new WorkRequest
     }
 }

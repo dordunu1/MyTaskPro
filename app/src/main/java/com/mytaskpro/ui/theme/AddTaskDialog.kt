@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.ui.theme.*
@@ -15,11 +16,8 @@ import java.util.Date
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import androidx.compose.runtime.LaunchedEffect
-import com.mytaskpro.ui.StableTimePickerDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.mytaskpro.data.RepetitiveTaskSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,19 +85,12 @@ fun AddTaskDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    when (category) {
-                        is CategoryType.Custom -> {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(category.color)
-                            )
-                        }
-                        else -> {
-                            Icon(category.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(category.color))
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Category: ${category.displayName}")
                 }
