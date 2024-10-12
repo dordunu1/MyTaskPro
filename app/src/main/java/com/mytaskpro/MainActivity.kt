@@ -6,10 +6,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,9 +23,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
 import com.mytaskpro.ui.theme.MyTaskProTheme
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
+import com.mytaskpro.SettingsViewModel
 import com.mytaskpro.ui.AppNavigation
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -31,6 +35,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var taskViewModel: TaskViewModel
     private lateinit var googleSignInClient: GoogleSignInClient
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     companion object {
         private const val MANAGE_EXTERNAL_STORAGE_REQUEST_CODE = 1001
@@ -43,6 +48,8 @@ class MainActivity : ComponentActivity() {
             taskViewModel.signInWithGoogle(account) { authResult ->
                 if (authResult != null && authResult.user != null) {
                     Toast.makeText(this, "Google Sign-In Successful", Toast.LENGTH_SHORT).show()
+                    Log.d("MainActivity", "Updating email to: ${account.email}")
+                    settingsViewModel.updateSignedInEmail(account.email)
                 } else {
                     Toast.makeText(this, "Google Sign-In Failed", Toast.LENGTH_SHORT).show()
                 }
@@ -63,6 +70,17 @@ class MainActivity : ComponentActivity() {
             .requestEmail()
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        FirebaseAuth.getInstance().addAuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                Log.d("MainActivity", "Firebase Auth State Changed: User signed in, email: ${user.email}")
+                settingsViewModel.updateSignedInEmail(user.email)
+            } else {
+                Log.d("MainActivity", "Firebase Auth State Changed: User signed out")
+                settingsViewModel.updateSignedInEmail(null)
+            }
+        }
 
         setContent {
             MyTaskProApp()
@@ -89,12 +107,15 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     taskViewModel = taskViewModel,
                     themeViewModel = themeViewModel,
+                    settingsViewModel = settingsViewModel,
                     isUserSignedIn = isUserSignedIn,
                     onGoogleSignIn = { signIn() },
                     onSignOut = {
                         taskViewModel.signOut()
                         googleSignInClient.signOut().addOnCompleteListener {
                             Toast.makeText(this@MainActivity, "Signed out", Toast.LENGTH_SHORT).show()
+                            Log.d("MainActivity", "User signed out, updating email to null")
+                            settingsViewModel.updateSignedInEmail(null)
                         }
                     }
                 )
@@ -136,11 +157,6 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent) {

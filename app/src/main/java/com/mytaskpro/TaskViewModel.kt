@@ -43,6 +43,13 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseUser
+import com.mytaskpro.SettingsViewModel
+import kotlinx.coroutines.TimeoutCancellationException
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -53,6 +60,7 @@ class TaskViewModel @Inject constructor(
     private val firebaseTaskRepository: FirebaseTaskRepository,
     private val workManager: WorkManager,
     private val firebaseAuth: FirebaseAuth,
+    private val settingsViewModel: SettingsViewModel, // Inject SettingsViewModel
     private val firestore: FirebaseFirestore
 ) : AndroidViewModel(application as Application) {
 
@@ -78,6 +86,11 @@ class TaskViewModel @Inject constructor(
     val taskAdditionStatus: StateFlow<TaskAdditionStatus> = _taskAdditionStatus.asStateFlow()
 
     private val _userPreferences = MutableStateFlow(UserPreferences())
+
+    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+
+    enum class SyncStatus { Idle, Syncing, Success, Error }
 
     private val _completedTaskCount = MutableStateFlow(0)
     val completedTaskCount: StateFlow<Int> = _completedTaskCount.asStateFlow()
@@ -248,48 +261,55 @@ class TaskViewModel @Inject constructor(
         _currentUser.value = null
     }
 
-    suspend fun syncTasksWithFirebase() {
-        val userId = firebaseAuth.currentUser?.uid ?: run {
-            Log.e("Firebase", "User not authenticated")
-            return
-        }
+    fun syncTasksWithFirebase() {
+        viewModelScope.launch {
+            Log.d("TaskViewModel", "Starting sync process")
+            settingsViewModel.startSync()
+            try {
+                val userId = firebaseAuth.currentUser?.uid ?: run {
+                    Log.e("TaskViewModel", "User not authenticated")
+                    settingsViewModel.endSync(false)
+                    return@launch
+                }
 
-        try {
-            val userTasksCollection = getUserTasksCollection(userId)
+                withTimeout(60000) { // 60 seconds timeout
+                    Log.d("TaskViewModel", "Fetching local tasks")
+                    val localTasks = taskDao.getAllTasksAsList()
+                    Log.d("TaskViewModel", "Local tasks count: ${localTasks.size}")
 
-            // Fetch local tasks
-            val localTasks = taskDao.getAllTasksAsList()
+                    Log.d("TaskViewModel", "Uploading local tasks to Firebase")
+                    val userTasksCollection = getUserTasksCollection(userId)
+                    localTasks.forEach { task ->
+                        userTasksCollection.document(task.id.toString()).set(task).await()
+                    }
 
-            // Upload local tasks
-            localTasks.forEach { task ->
-                userTasksCollection.document(task.id.toString())
-                    .set(task)
-                    .await() // Ensure each upload completes before moving on
+                    Log.d("TaskViewModel", "Fetching remote tasks")
+                    val remoteTasks = userTasksCollection.get().await().toObjects(Task::class.java)
+                    Log.d("TaskViewModel", "Remote tasks count: ${remoteTasks.size}")
+
+                    Log.d("TaskViewModel", "Merging tasks")
+                    val mergedTasks = mergeTasks(localTasks, remoteTasks)
+                    Log.d("TaskViewModel", "Merged tasks count: ${mergedTasks.size}")
+
+                    Log.d("TaskViewModel", "Updating local database")
+                    taskDao.deleteAllTasks()
+                    taskDao.insertTasks(mergedTasks)
+
+                    _tasks.value = mergedTasks
+
+                    Log.d("TaskViewModel", "Sync completed successfully")
+                    settingsViewModel.endSync(true)
+                }
+            } catch (e: Exception) {
+                when (e) {
+                    is TimeoutCancellationException -> Log.e("TaskViewModel", "Sync timed out", e)
+                    else -> Log.e("TaskViewModel", "Sync failed", e)
+                }
+                settingsViewModel.endSync(false)
             }
-
-            // Fetch remote tasks
-            val remoteTasks = userTasksCollection
-                .get()
-                .await()
-                .toObjects(Task::class.java)
-
-            // Merge local and remote tasks with conflict resolution
-            val mergedTasks = mergeTasks(localTasks, remoteTasks)
-
-            // Update local database
-            taskDao.deleteAllTasks()
-            taskDao.insertTasks(mergedTasks)
-
-            // Update UI state
-            _tasks.value = mergedTasks
-
-            Log.d("Firebase", "Sync completed successfully")
-        } catch (e: Exception) {
-            Log.e("Firebase", "Sync failed", e)
-            // You might want to notify the user about the sync failure
-            // For example, update a UI state or show a toast
         }
     }
+
 
     private fun mergeTasks(localTasks: List<Task>, remoteTasks: List<Task>): List<Task> {
         val mergedTasks = mutableMapOf<Int, Task>()

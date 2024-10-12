@@ -27,7 +27,8 @@ data class Task(
     val snoozeCount: Int = 0,
     val isSnoozed: Boolean = false,
     val completionDate: Date? = null,
-    val lastModified: Long = System.currentTimeMillis()
+    val lastModified: Long = System.currentTimeMillis(),
+
 ) {
     val categoryColor: Int
         get() = category.color

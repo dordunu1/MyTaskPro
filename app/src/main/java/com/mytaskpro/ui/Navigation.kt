@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.mytaskpro.ui.MainScreen
 import com.mytaskpro.ui.TaskDetailScreen
 import com.mytaskpro.SettingsScreen
+import com.mytaskpro.SettingsViewModel
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 
@@ -18,6 +19,7 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 fun AppNavigation(
     taskViewModel: TaskViewModel,
     themeViewModel: ThemeViewModel,
+    settingsViewModel: SettingsViewModel, // Add this line
     isUserSignedIn: Boolean,
     onGoogleSignIn: () -> Unit,
     onSignOut: () -> Unit
@@ -41,6 +43,7 @@ fun AppNavigation(
             SettingsScreen(
                 taskViewModel = taskViewModel,
                 themeViewModel = themeViewModel,
+                settingsViewModel = settingsViewModel,
                 onBackClick = { navController.popBackStack() },
                 isUserSignedIn = isUserSignedIn,
                 onGoogleSignIn = onGoogleSignIn,
