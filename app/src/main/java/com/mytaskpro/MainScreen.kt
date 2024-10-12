@@ -22,7 +22,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
-import com.mytaskpro.ui.components.ThemeSelectionDialog
 import com.mytaskpro.data.CategoryType
 import java.util.Date
 import java.text.SimpleDateFormat
@@ -39,7 +38,6 @@ fun MainScreen(
     onTaskClick: (Int) -> Unit
 ) {
     val innerNavController = rememberNavController()
-    var showThemeDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -48,7 +46,8 @@ fun MainScreen(
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("MyTaskPro")
                             IconButton(onClick = onSettingsClick) {
@@ -158,32 +157,9 @@ fun MainScreen(
                 }
             }
         }
-
-        // Theme icon in the top-right corner
-        IconButton(
-            onClick = { showThemeDialog = true },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 8.dp, end = 8.dp)
-        ) {
-            Icon(
-                Icons.Default.Palette,
-                contentDescription = "Change theme",
-                tint = MaterialTheme.colorScheme.onBackground
-            )
-        }
-    }
-
-    if (showThemeDialog) {
-        ThemeSelectionDialog(
-            onDismiss = { showThemeDialog = false },
-            onThemeSelected = { theme ->
-                themeViewModel.setTheme(theme)
-                showThemeDialog = false
-            }
-        )
     }
 }
+
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Tasks : Screen("tasks", "Tasks", Icons.Filled.List)

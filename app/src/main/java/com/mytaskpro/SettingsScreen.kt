@@ -20,7 +20,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.time.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mytaskpro.ui.theme.AppTheme
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +71,7 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            GeneralSettingsSection(settingsViewModel)
+            GeneralSettingsSection(settingsViewModel, themeViewModel)
             Spacer(modifier = Modifier.height(16.dp))
             NotificationSettingsSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
@@ -63,7 +79,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             WidgetCustomizationSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
-            PremiumSubscriptionSection(settingsViewModel) // Replace DataManagementSection with this
+            PremiumSubscriptionSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
             FeedbackSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
@@ -73,12 +89,127 @@ fun SettingsScreen(
 }
 
 @Composable
-fun GeneralSettingsSection(viewModel: SettingsViewModel) {
+fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeViewModel) {
+    var showThemeDialog by remember { mutableStateOf(false) }
+
     SettingsSection(title = "General") {
         SwitchSetting("Dark Mode", viewModel.isDarkMode.collectAsState().value) { viewModel.toggleDarkMode() }
         SwitchSetting("24-Hour Format", viewModel.is24HourFormat.collectAsState().value) { viewModel.toggle24HourFormat() }
-        DropdownSetting("Theme", viewModel.currentTheme.collectAsState().value, viewModel.availableThemes.collectAsState().value) { viewModel.setTheme(it) }
+        ClickableSetting("Theme") {
+            showThemeDialog = true
+        }
         DropdownSetting("Language", viewModel.currentLanguage.collectAsState().value, viewModel.availableLanguages.collectAsState().value) { viewModel.setLanguage(it) }
+    }
+
+    if (showThemeDialog) {
+        ThemeSelectionDialog(
+            currentTheme = themeViewModel.currentTheme.collectAsState().value,
+            onThemeSelected = { theme ->
+                themeViewModel.setTheme(theme)
+                showThemeDialog = false
+            },
+            onDismiss = { showThemeDialog = false }
+        )
+    }
+}
+
+@Composable
+fun ThemeSelectionDialog(
+    currentTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Theme") },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(AppTheme.values()) { theme ->
+                    ThemeOption(
+                        theme = theme,
+                        isSelected = currentTheme == theme,
+                        onSelect = { onThemeSelected(theme) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ThemeOption(
+    theme: AppTheme,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(onClick = onSelect)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(getThemeColor(theme))
+            )
+            Text(
+                text = theme.name,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
+    }
+}
+
+@Composable
+fun getThemeColor(theme: AppTheme): Color {
+    return when (theme) {
+        AppTheme.Default -> MaterialTheme.colorScheme.primary
+        AppTheme.ClassicLight -> Color(0xFF5C9EAD)
+        AppTheme.WarmSepia -> Color(0xFFD9534F)
+        AppTheme.Dark -> Color(0xFF0D0E0E)
+        AppTheme.HighContrast -> Color(0xFFFFD700)
+        AppTheme.SoftBlue -> Color(0xFF90CAF9)
+        AppTheme.Pink -> Color(0xFFE91E63)
+        AppTheme.PaperLight -> Color(0xFFDAB894)
+        AppTheme.PaperDark -> Color(0xFFBDAA7E)
+    }
+}
+
+@Composable
+fun ClickableSetting(title: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium)
+        Icon(Icons.Default.ChevronRight, contentDescription = null)
     }
 }
 
