@@ -176,8 +176,6 @@ fun AddNoteDialog(
 
             if (isEditing) {
                 BottomActionBar(
-                    category = selectedCategory,
-                    onCategoryChanged = { selectedCategory = it },
                     onImagePicked = { uri ->
                         uri?.let {
                             newlySelectedImageUris = newlySelectedImageUris + it
@@ -288,8 +286,6 @@ fun TopActionBar(
 
 @Composable
 fun BottomActionBar(
-    category: CategoryType,
-    onCategoryChanged: (CategoryType) -> Unit,
     onImagePicked: (Uri?) -> Unit,
     onPdfPicked: (Uri?) -> Unit,
     onScanRequested: () -> Unit
@@ -307,10 +303,6 @@ fun BottomActionBar(
             onClick = onScanRequested
         )
         ImagePicker(onImagePicked = onImagePicked, onPdfPicked = onPdfPicked)
-        ActionButton(
-            icon = Icons.Default.Create,
-            text = "Draw",
-            onClick = { /* TODO: Implement drawing */ })
     }
 }
 
