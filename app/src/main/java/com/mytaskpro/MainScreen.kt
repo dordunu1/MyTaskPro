@@ -23,6 +23,7 @@ import androidx.navigation.navArgument
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.data.CategoryType
+import com.mytaskpro.ui.components.HorizontalProgressBar
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -38,6 +39,7 @@ fun MainScreen(
     onTaskClick: (Int) -> Unit
 ) {
     val innerNavController = rememberNavController()
+    val completionPercentage by taskViewModel.completionPercentage.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -101,59 +103,86 @@ fun MainScreen(
                 }
             }
         ) { innerPadding ->
-            NavHost(
-                navController = innerNavController,
-                startDestination = Screen.Tasks.route,
-                modifier = Modifier.padding(innerPadding)
-            ) {
-                composable(Screen.Tasks.route) {
-                    TasksScreen(
-                        viewModel = taskViewModel,
-                        onTaskClick = onTaskClick,
-                        onEditTask = { taskId ->
-                            innerNavController.navigate("${Screen.EditTask.route}/$taskId")
-                        }
+            Column(modifier = Modifier.padding(innerPadding)) {
+                // Add the HorizontalProgressBar and summary icon below the TopAppBar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalProgressBar(
+                        percentage = completionPercentage,
+                        height = 8f,
+                        modifier = Modifier.weight(1f)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { taskViewModel.showTaskSummaryGraph() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Task Summary",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
-                composable(Screen.Notes.route) {
-                    NotesScreen(viewModel = taskViewModel)
-                }
+                NavHost(
+                    navController = innerNavController,
+                    startDestination = Screen.Tasks.route,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    composable(Screen.Tasks.route) {
+                        TasksScreen(
+                            viewModel = taskViewModel,
+                            onTaskClick = onTaskClick,
+                            onEditTask = { taskId ->
+                                innerNavController.navigate("${Screen.EditTask.route}/$taskId")
+                            }
+                        )
+                    }
 
-                composable(
-                    route = "${Screen.EditTask.route}/{taskId}",
-                    arguments = listOf(navArgument("taskId") { type = NavType.IntType })
-                ) { backStackEntry ->
-                    val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
-                    EditTaskScreen(
-                        taskId = taskId,
-                        viewModel = taskViewModel,
-                        onNavigateBack = { innerNavController.popBackStack() }
-                    )
-                }
+                    composable(Screen.Notes.route) {
+                        NotesScreen(viewModel = taskViewModel)
+                    }
 
-                composable(
-                    route = "${Screen.EditNote.route}/{noteId}",
-                    arguments = listOf(navArgument("noteId") { type = NavType.IntType })
-                ) { backStackEntry ->
-                    val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
-                    EditNoteScreen(
-                        viewModel = taskViewModel,
-                        noteId = noteId,
-                        onNavigateBack = { innerNavController.popBackStack() }
-                    )
-                }
+                    composable(
+                        route = "${Screen.EditTask.route}/{taskId}",
+                        arguments = listOf(navArgument("taskId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                        EditTaskScreen(
+                            taskId = taskId,
+                            viewModel = taskViewModel,
+                            onNavigateBack = { innerNavController.popBackStack() }
+                        )
+                    }
 
-                composable(
-                    route = "note_detail/{noteId}",
-                    arguments = listOf(navArgument("noteId") { type = NavType.IntType })
-                ) { backStackEntry ->
-                    val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
-                    NoteDetailScreen(
-                        viewModel = taskViewModel,
-                        noteId = noteId,
-                        navController = innerNavController
-                    )
+                    composable(
+                        route = "${Screen.EditNote.route}/{noteId}",
+                        arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
+                        EditNoteScreen(
+                            viewModel = taskViewModel,
+                            noteId = noteId,
+                            onNavigateBack = { innerNavController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = "note_detail/{noteId}",
+                        arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
+                        NoteDetailScreen(
+                            viewModel = taskViewModel,
+                            noteId = noteId,
+                            navController = innerNavController
+                        )
+                    }
                 }
             }
         }

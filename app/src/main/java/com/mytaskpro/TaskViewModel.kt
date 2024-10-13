@@ -99,6 +99,9 @@ class TaskViewModel @Inject constructor(
     private val _isUserSignedIn = MutableStateFlow(false)
     val isUserSignedIn: StateFlow<Boolean> = _isUserSignedIn
 
+    private val _completionPercentage = MutableStateFlow(0f)
+    val completionPercentage: StateFlow<Float> = _completionPercentage.asStateFlow()
+
     private val updateWidgetJob = Job()
     private val updateWidgetScope = CoroutineScope(Dispatchers.Default + updateWidgetJob)
 
@@ -152,6 +155,7 @@ class TaskViewModel @Inject constructor(
         observeTasks()
         observeNotes()
         checkUserSignInStatus()
+        updateCompletionPercentage()
     }
 
     private fun checkUserSignInStatus() {
@@ -390,6 +394,9 @@ class TaskViewModel @Inject constructor(
                                 .set(insertedTask)
                         }
                     }
+
+                    // Update completion percentage
+                    updateCompletionPercentage()
                 } else {
                     Log.e("TaskViewModel", "Failed to retrieve inserted task")
                     _taskAdditionStatus.value = TaskAdditionStatus.Error
@@ -441,6 +448,9 @@ class TaskViewModel @Inject constructor(
                         .set(updatedTask)
                 }
             }
+
+            // Update completion percentage
+            updateCompletionPercentage()
         }
     }
 
@@ -467,6 +477,7 @@ class TaskViewModel @Inject constructor(
             } else {
                 Log.e("TaskViewModel", "Task not found for deletion: $taskId")
             }
+            updateCompletionPercentage()
         }
     }
 
@@ -491,6 +502,10 @@ class TaskViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun showTaskSummaryGraph() {
+        // This will be implemented later to show the task summary graph
     }
 
     private fun handleAddedTask(task: Task) {
@@ -755,6 +770,21 @@ class TaskViewModel @Inject constructor(
                 _completedTaskCount.value -= 1
             }
             updateWidget()
+            updateCompletionPercentage()
+        }
+    }
+
+
+    private fun updateCompletionPercentage() {
+        viewModelScope.launch {
+            val allTasks = taskDao.getAllTasksAsList()
+            val completedTasks = allTasks.count { it.isCompleted }
+            val totalTasks = allTasks.size
+            _completionPercentage.value = if (totalTasks > 0) {
+                completedTasks.toFloat() / totalTasks.toFloat()
+            } else {
+                0f
+            }
         }
     }
 
