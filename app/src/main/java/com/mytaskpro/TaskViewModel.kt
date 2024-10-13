@@ -635,11 +635,26 @@ class TaskViewModel @Inject constructor(
                 dueDate = newDueDate,
                 reminderTime = newReminderTime,
                 isSnoozed = true,
-                snoozeCount = task.snoozeCount + 1
+                snoozeCount = task.snoozeCount + 1,
             )
             taskDao.updateTask(updatedTask)
             scheduleNotifications(updatedTask)
             updateWidget()
+
+            // Sync with Firebase
+            val userId = firebaseAuth.currentUser?.uid
+            if (userId != null) {
+                firestore.collection("users").document(userId)
+                    .collection("tasks").document(taskId.toString())
+                    .set(updatedTask)
+                    .addOnSuccessListener {
+                        Log.d("TaskViewModel", "Task snoozed and synced with Firebase: ${task.title}")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("TaskViewModel", "Error syncing snoozed task with Firebase", e)
+                    }
+            }
+
             Log.d("TaskViewModel", "Task snoozed: ${task.title}, New due date: $newDueDate")
         }
     }
@@ -656,12 +671,26 @@ class TaskViewModel @Inject constructor(
                         reminderTime = task.reminderTime,
                         isSnoozed = false,
                         snoozeCount = 0,
-                        showSnoozeOptions = false
+                        showSnoozeOptions = false,
                     )
                     taskDao.updateTask(updatedTask)
                     Log.d("TaskViewModel", "Task updated: $updatedTask")
                     scheduleNotifications(updatedTask)
                     updateWidget()
+
+                    // Sync with Firebase
+                    val userId = firebaseAuth.currentUser?.uid
+                    if (userId != null) {
+                        firestore.collection("users").document(userId)
+                            .collection("tasks").document(taskId.toString())
+                            .set(updatedTask)
+                            .addOnSuccessListener {
+                                Log.d("TaskViewModel", "Task unsnooze synced with Firebase: ${task.title}")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("TaskViewModel", "Error syncing unsnooze task with Firebase", e)
+                            }
+                    }
                 } else {
                     Log.e("TaskViewModel", "Task not found for id $taskId")
                 }
