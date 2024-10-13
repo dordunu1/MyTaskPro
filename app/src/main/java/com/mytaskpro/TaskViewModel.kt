@@ -118,10 +118,22 @@ class TaskViewModel @Inject constructor(
         tasks.filter { task ->
             when (filter) {
                 is FilterOption.All -> true
-                is FilterOption.Category -> task.category == filter.category && !task.isCompleted
+                is FilterOption.Category -> {
+                    val matches = task.category.type == filter.category.type &&
+                            task.category.displayName == filter.category.displayName &&
+                            !task.isCompleted
+                    Log.d("TaskViewModel", "Category filter: task=${task.title}, category=${task.category}, filterCategory=${filter.category}, isCompleted=${task.isCompleted}, matches=$matches")
+                    matches
+                }
                 is FilterOption.Completed -> task.isCompleted
-                is FilterOption.CustomCategory -> (task.category as? CategoryType)?.displayName == filter.category.displayName && !task.isCompleted
-                else -> false // This covers any potential future FilterOption subclasses
+                is FilterOption.CustomCategory -> {
+                    val matches = task.category.type == "CUSTOM" &&
+                            task.category.displayName == filter.category.displayName &&
+                            !task.isCompleted
+                    Log.d("TaskViewModel", "CustomCategory filter: task=${task.title}, category=${task.category}, filterCategory=${filter.category}, isCompleted=${task.isCompleted}, matches=$matches")
+                    matches
+                }
+                else -> false
             }
         }.sortedWith { a, b ->
             when (sort) {

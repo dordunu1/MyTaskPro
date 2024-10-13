@@ -13,6 +13,18 @@ data class CategoryType(
     @get:Exclude val icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Label,
     val color: Int = 0
 ) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as CategoryType
+        return type == other.type && displayName == other.displayName
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = 31 * result + displayName.hashCode()
+        return result
+    }
     companion object {
         val WORK = CategoryType("WORK", "Work", Icons.Default.Work, Color(0xFF4CAF50).toArgb())
         val SCHOOL = CategoryType("SCHOOL", "School", Icons.Default.School, Color(0xFF2196F3).toArgb())
