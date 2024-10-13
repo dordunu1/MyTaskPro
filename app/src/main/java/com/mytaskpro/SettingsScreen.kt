@@ -431,14 +431,17 @@ fun PremiumSubscriptionSection(viewModel: SettingsViewModel) {
 @Composable
 fun FeedbackSection(viewModel: SettingsViewModel) {
     SettingsSection(title = "Feedback") {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            TextButton(onClick = { viewModel.provideFeedback() }) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            TextButton(
+                onClick = { viewModel.provideFeedback() },
+                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+            ) {
                 Text("Provide Feedback")
             }
-            TextButton(onClick = { viewModel.reportIssue() }) {
+            TextButton(
+                onClick = { viewModel.reportIssue() },
+                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+            ) {
                 Text("Report Issue")
             }
         }
@@ -448,16 +451,24 @@ fun FeedbackSection(viewModel: SettingsViewModel) {
 @Composable
 fun AboutSection(viewModel: SettingsViewModel) {
     SettingsSection(title = "About") {
-        Text(
-            "Version: ${viewModel.appVersion.collectAsState().value}",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        )
-        TextButton(onClick = { /* Open privacy policy */ }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            Text("Privacy Policy")
-        }
-        TextButton(onClick = { /* Open terms of service */ }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            Text("Terms of Service")
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "Version: ${viewModel.appVersion.collectAsState().value}",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            TextButton(
+                onClick = { /* Open privacy policy */ },
+                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+            ) {
+                Text("Privacy Policy")
+            }
+            TextButton(
+                onClick = { /* Open terms of service */ },
+                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+            ) {
+                Text("Terms of Service")
+            }
         }
     }
 }

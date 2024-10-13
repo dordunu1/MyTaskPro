@@ -47,6 +47,7 @@ import com.mytaskpro.SettingsViewModel
 import kotlinx.coroutines.TimeoutCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.DocumentChange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -144,6 +145,9 @@ class TaskViewModel @Inject constructor(
     private fun checkUserSignInStatus() {
         _isUserSignedIn.value = firebaseAuth.currentUser != null
         _currentUser.value = firebaseAuth.currentUser
+        if (_isUserSignedIn.value) {
+            setupFirestoreListener()
+        }
     }
 
     fun getTaskById(id: Int): Flow<Task?> {
@@ -249,6 +253,7 @@ class TaskViewModel @Inject constructor(
                     _currentUser.value = firebaseAuth.currentUser
                     viewModelScope.launch {
                         syncTasksWithFirebase()
+                        setupFirestoreListener()
                     }
                 }
                 onComplete(task.result)
@@ -450,6 +455,50 @@ class TaskViewModel @Inject constructor(
             } else {
                 Log.e("TaskViewModel", "Task not found for deletion: $taskId")
             }
+        }
+    }
+
+    private fun setupFirestoreListener() {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            getUserTasksCollection(userId).addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("TaskViewModel", "Listen failed.", e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    for (doc in snapshot.documentChanges) {
+                        val task = doc.document.toObject(Task::class.java)
+                        when (doc.type) {
+                            DocumentChange.Type.ADDED -> handleAddedTask(task)
+                            DocumentChange.Type.MODIFIED -> handleModifiedTask(task)
+                            DocumentChange.Type.REMOVED -> handleRemovedTask(task.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handleAddedTask(task: Task) {
+        viewModelScope.launch {
+            taskDao.insertTask(task)
+            updateWidget()
+        }
+    }
+
+    private fun handleModifiedTask(task: Task) {
+        viewModelScope.launch {
+            taskDao.updateTask(task)
+            updateWidget()
+        }
+    }
+
+    private fun handleRemovedTask(taskId: Int) {
+        viewModelScope.launch {
+            taskDao.deleteTaskById(taskId)
+            updateWidget()
         }
     }
 

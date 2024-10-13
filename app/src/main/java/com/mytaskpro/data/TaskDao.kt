@@ -82,6 +82,10 @@ interface TaskDao {
     @Query("DELETE FROM tasks WHERE id = :taskId")
     suspend fun deleteTaskById(taskId: Int)
 
+    @Query("SELECT * FROM tasks WHERE category = :category")
+    fun getTasksByCategory(category: CategoryType): Flow<List<Task>>
+
+
     @Transaction
     suspend fun replaceAllTasks(tasks: List<Task>) {
         deleteAllTasks()
