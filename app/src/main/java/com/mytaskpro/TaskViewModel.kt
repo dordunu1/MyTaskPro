@@ -1195,7 +1195,6 @@ class TaskViewModel @Inject constructor(
                 "Repetitive Tasks" to repetitiveTasks.size.toString(),
                 "Tasks with Reminders" to tasksWithReminders.size.toString(),
                 "Overdue Tasks" to overdueTasks.size.toString(),
-                "Currently Snoozed Tasks" to snoozedTasks.size.toString(),
                 "Total Times Tasks Snoozed" to totalSnoozed.toString(),
                 "Most Used Category" to mostUsedCategory
             )
@@ -1211,7 +1210,8 @@ class TaskViewModel @Inject constructor(
                 "Repetitive Tasks" to getTaskSummaries(repetitiveTasks),
                 "Tasks with Reminders" to getTaskSummaries(tasksWithReminders),
                 "Overdue Tasks" to getTaskSummaries(overdueTasks),
-                "Currently Snoozed Tasks" to getTaskSummaries(snoozedTasks)
+                "Total Times Tasks Snoozed" to getTaskSummaries(allTasks.filter { it.snoozeCount > 0 }),
+                "Most Used Category" to getTaskSummaries(allTasks.filter { it.category.displayName == mostUsedCategory })
             )
 
             // Add category-specific tasks
