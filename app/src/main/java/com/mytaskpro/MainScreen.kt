@@ -24,6 +24,7 @@ import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.ui.components.HorizontalProgressBar
+import com.mytaskpro.ui.TaskSummaryGraph
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -40,6 +41,8 @@ fun MainScreen(
 ) {
     val innerNavController = rememberNavController()
     val completionPercentage by taskViewModel.completionPercentage.collectAsState()
+    var showGraph by remember { mutableStateOf(false) } // Add this line
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -104,7 +107,7 @@ fun MainScreen(
             }
         ) { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
-                // Add the HorizontalProgressBar and summary icon below the TopAppBar
+                // Progress bar and graph button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -118,7 +121,7 @@ fun MainScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
-                        onClick = { taskViewModel.showTaskSummaryGraph() },
+                        onClick = { showGraph = !showGraph }, // Toggle showGraph
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -127,6 +130,15 @@ fun MainScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
+                }
+
+                // Show graph if button is clicked
+                if (showGraph) {
+                    TaskSummaryGraph(
+                        viewModel = taskViewModel,
+                        modifier = Modifier.fillMaxWidth(),
+                        onCloseClick = { showGraph = false } // Add this line
+                    )
                 }
 
                 NavHost(

@@ -83,6 +83,9 @@ dependencies {
     implementation ("androidx.navigation:navigation-compose:2.5.3")
     implementation ("androidx.glance:glance-appwidget:1.0.0-alpha05")
     implementation ("androidx.camera:camera-camera2:1.2.3")
+    implementation ("com.patrykandpatrick.vico:compose:1.6.5")
+    implementation ("com.patrykandpatrick.vico:compose-m3:1.12.0")
+
 
 
     // Firebase

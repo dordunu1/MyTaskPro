@@ -92,6 +92,9 @@ interface TaskDao {
         insertTasks(tasks)
     }
 
+
     @Query("SELECT * FROM tasks WHERE lastModified > :lastSyncTime")
     suspend fun getTasksModifiedSince(lastSyncTime: Long): List<Task>
+
+
 }

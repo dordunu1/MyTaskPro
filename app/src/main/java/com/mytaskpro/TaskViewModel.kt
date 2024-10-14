@@ -10,6 +10,7 @@ import android.provider.OpenableColumns
 import android.util.Log
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Label
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
@@ -48,9 +49,15 @@ import kotlinx.coroutines.TimeoutCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.DocumentChange
+import com.mytaskpro.ui.TimeFrame
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import java.text.SimpleDateFormat
+import kotlin.math.roundToInt
+import kotlin.random.Random
+
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
@@ -993,6 +1000,258 @@ class TaskViewModel @Inject constructor(
         saveUserPreferences()
     }
 
+    fun getCompletionData(timeFrame: TimeFrame): Flow<List<Pair<Int, Int>>> = flow {
+        when (timeFrame) {
+            TimeFrame.DAILY -> {
+                val sevenDaysAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -6) }
+                emit(getDailyData(sevenDaysAgo, 7))
+            }
+            TimeFrame.WEEKLY -> {
+                val fourWeeksAgo = Calendar.getInstance().apply { add(Calendar.WEEK_OF_YEAR, -3) }
+                emit(getWeeklyData(fourWeeksAgo, 4))
+            }
+            TimeFrame.MONTHLY -> {
+                val twelveMonthsAgo = Calendar.getInstance().apply { add(Calendar.MONTH, -11) }
+                emit(getMonthlyData(twelveMonthsAgo, 12))
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun getDailyData(startDate: Calendar, days: Int): List<Pair<Int, Int>> {
+        return (0 until days).map { dayOffset ->
+            val date = Calendar.getInstance().apply {
+                time = startDate.time
+                add(Calendar.DAY_OF_YEAR, dayOffset)
+            }
+            val startOfDay = date.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis
+            val endOfDay = date.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }.timeInMillis
+
+            val tasksForDay = taskDao.getTasksForDateRange(startOfDay, endOfDay)
+            val completedTasks = tasksForDay.count { it.isCompleted }
+            Pair(completedTasks, tasksForDay.size)
+        }
+    }
+
+    private suspend fun getWeeklyData(startDate: Calendar, weeks: Int): List<Pair<Int, Int>> {
+        return (0 until weeks).map { weekOffset ->
+            val weekStart = Calendar.getInstance().apply {
+                time = startDate.time
+                add(Calendar.WEEK_OF_YEAR, weekOffset)
+                set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }
+            val weekEnd = Calendar.getInstance().apply {
+                time = weekStart.time
+                add(Calendar.DAY_OF_YEAR, 6)
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+            }
+
+            val tasksForWeek = taskDao.getTasksForDateRange(weekStart.timeInMillis, weekEnd.timeInMillis)
+            val completedTasks = tasksForWeek.count { it.isCompleted }
+            Pair(completedTasks, tasksForWeek.size)
+        }
+    }
+
+    private suspend fun getMonthlyData(startDate: Calendar, months: Int): List<Pair<Int, Int>> {
+        return (0 until months).map { monthOffset ->
+            val monthStart = Calendar.getInstance().apply {
+                time = startDate.time
+                add(Calendar.MONTH, monthOffset)
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }
+            val monthEnd = Calendar.getInstance().apply {
+                time = monthStart.time
+                set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+            }
+
+            val tasksForMonth = taskDao.getTasksForDateRange(monthStart.timeInMillis, monthEnd.timeInMillis)
+            val completedTasks = tasksForMonth.count { it.isCompleted }
+            Pair(completedTasks, tasksForMonth.size)
+        }
+    }
+
+    fun getCategoryCompletionData(timeFrame: TimeFrame): Flow<Map<CategoryType, List<Pair<Int, Int>>>> = flow {
+        when (timeFrame) {
+            TimeFrame.DAILY -> {
+                val sevenDaysAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -6) }
+                emit(getCategoryData(sevenDaysAgo, 7, Calendar.DAY_OF_YEAR))
+            }
+            TimeFrame.WEEKLY -> {
+                val fourWeeksAgo = Calendar.getInstance().apply { add(Calendar.WEEK_OF_YEAR, -3) }
+                emit(getCategoryData(fourWeeksAgo, 4, Calendar.WEEK_OF_YEAR))
+            }
+            TimeFrame.MONTHLY -> {
+                val twelveMonthsAgo = Calendar.getInstance().apply { add(Calendar.MONTH, -11) }
+                emit(getCategoryData(twelveMonthsAgo, 12, Calendar.MONTH))
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun getCategoryData(startDate: Calendar, periods: Int, calendarField: Int): Map<CategoryType, List<Pair<Int, Int>>> {
+        val categoryData = mutableMapOf<CategoryType, MutableList<Pair<Int, Int>>>()
+
+        (0 until periods).forEach { offset ->
+            val periodStart = Calendar.getInstance().apply {
+                time = startDate.time
+                add(calendarField, offset)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+            }
+            val periodEnd = Calendar.getInstance().apply {
+                time = periodStart.time
+                add(calendarField, 1)
+                add(Calendar.SECOND, -1)
+            }
+
+            val tasksForPeriod = taskDao.getTasksForDateRange(periodStart.timeInMillis, periodEnd.timeInMillis)
+
+            CategoryType.values().forEach { category ->
+                val tasksForCategory = tasksForPeriod.filter { it.category == category }
+                val completedTasks = tasksForCategory.count { it.isCompleted }
+                categoryData.getOrPut(category) { mutableListOf() }.add(Pair(completedTasks, tasksForCategory.size))
+            }
+        }
+
+        return categoryData
+    }
+
+    suspend fun getProductivityScore(): Int {
+        val allTasks = taskDao.getAllTasksAsList()
+        val completedTasks = allTasks.count { it.isCompleted }
+        val totalTasks = allTasks.size
+        return if (totalTasks > 0) (completedTasks.toFloat() / totalTasks * 100).toInt() else 0
+    }
+
+    suspend fun getCurrentStreak(): Int {
+        var streak = 0
+        var currentDate = Calendar.getInstance()
+
+        while (true) {
+            val startOfDay = currentDate.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis
+            val endOfDay = currentDate.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }.timeInMillis
+
+            val tasksForDay = taskDao.getTasksForDateRange(startOfDay, endOfDay)
+            val allCompleted = tasksForDay.isNotEmpty() && tasksForDay.all { it.isCompleted }
+
+            if (allCompleted) {
+                streak++
+                currentDate.add(Calendar.DAY_OF_YEAR, -1)
+            } else {
+                break
+            }
+        }
+        return streak
+    }
+
+    suspend fun getOverdueTasks(): Int {
+        val currentDate = Date()
+        return taskDao.getAllTasksAsList().count { !it.isCompleted && it.dueDate < currentDate }
+    }
+
+    suspend fun getAverageTurnaround(): Float {
+        val completedTasks = taskDao.getAllTasksAsList().filter { it.isCompleted }
+        val currentTime = System.currentTimeMillis()
+        val totalTurnaround = completedTasks.sumOf { task ->
+            val completionTime = task.completionDate?.time ?: currentTime
+            completionTime - task.dueDate.time
+        }
+        return if (completedTasks.isNotEmpty())
+            totalTurnaround.toFloat() / completedTasks.size / (24 * 60 * 60 * 1000)
+        else 0f
+    }
+
+    fun getBasicAnalytics(): Flow<AnalyticsData> = flow {
+        taskDao.getAllTasks().collect { allTasks ->
+            val completedTasks = allTasks.filter { it.isCompleted }
+            val pendingTasks = allTasks.filter { !it.isCompleted }
+            val repetitiveTasks = allTasks.filter { it.repetitiveSettings != null }
+            val tasksWithReminders = allTasks.filter { it.reminderTime != null }
+            val overdueTasks = allTasks.filter { !it.isCompleted && it.dueDate.before(Date()) }
+            val snoozedTasks = allTasks.filter { it.isSnoozed }
+            val totalSnoozed = allTasks.sumOf { it.snoozeCount }
+            val mostUsedCategory = allTasks.groupBy { it.category }
+                .maxByOrNull { it.value.size }
+                ?.key?.displayName ?: "None"
+            val completionRate = if (allTasks.isNotEmpty()) {
+                (completedTasks.size.toFloat() / allTasks.size * 100).roundToInt()
+            } else 0
+
+            val summary = mapOf(
+                "Total Tasks" to allTasks.size.toString(),
+                "Completed Tasks" to completedTasks.size.toString(),
+                "Pending Tasks" to pendingTasks.size.toString(),
+                "Completion Rate" to "$completionRate%",
+                "Repetitive Tasks" to repetitiveTasks.size.toString(),
+                "Tasks with Reminders" to tasksWithReminders.size.toString(),
+                "Overdue Tasks" to overdueTasks.size.toString(),
+                "Currently Snoozed Tasks" to snoozedTasks.size.toString(),
+                "Total Times Tasks Snoozed" to totalSnoozed.toString()
+            )
+
+            val categoryBreakdown = getCategoryBreakdown(allTasks)
+            val recentActivity = getRecentActivity(allTasks)
+
+            val categoryTasks = allTasks.groupBy { it.category.displayName }
+            val detailedTasks = mutableMapOf(
+                "Total Tasks" to getTaskSummaries(allTasks),
+                "Completed Tasks" to getTaskSummaries(completedTasks),
+                "Pending Tasks" to getTaskSummaries(pendingTasks),
+                "Repetitive Tasks" to getTaskSummaries(repetitiveTasks),
+                "Tasks with Reminders" to getTaskSummaries(tasksWithReminders),
+                "Overdue Tasks" to getTaskSummaries(overdueTasks),
+                "Currently Snoozed Tasks" to getTaskSummaries(snoozedTasks)
+            )
+
+            // Add category-specific tasks
+            categoryTasks.forEach { (category, tasks) ->
+                detailedTasks["Category: $category"] = getTaskSummaries(tasks)
+            }
+
+            emit(AnalyticsData(summary, categoryBreakdown, recentActivity, detailedTasks))
+        }
+    }
+
+    private fun getCategoryBreakdown(tasks: List<Task>): Map<String, Pair<Int, Color>> {
+        return tasks.groupBy { it.category.displayName }
+            .mapValues { (_, tasksInCategory) ->
+                Pair(tasksInCategory.size, Color(tasksInCategory.first().category.color))
+            }
+    }
+
+    private fun getTaskSummaries(tasks: List<Task>): List<TaskSummary> {
+        return tasks.map { task ->
+            TaskSummary(
+                title = task.title,
+                category = task.category.displayName,
+                categoryColor = Color(task.category.color),
+                dueDate = SimpleDateFormat("EEE MMM dd HH:mm:ss 'GMT' yyyy", Locale.US).format(task.dueDate),
+                reminder = task.reminderTime?.let { SimpleDateFormat("EEE MMM dd HH:mm:ss 'GMT' yyyy", Locale.US).format(it) } ?: "None",
+                status = if (task.isCompleted) "Completed" else "Pending"
+            )
+        }
+    }
+
+    private fun getRecentActivity(tasks: List<Task>): List<String> {
+        return tasks.sortedByDescending { it.lastModified }
+            .take(5)
+            .map { task ->
+                val action = if (task.isCompleted) "Completed" else "Modified"
+                "$action: ${task.title} (${SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(task.lastModified))})"
+            }
+    }
+
+
 
     private fun updateWidget() {
         updateWidgetScope.launch {
@@ -1061,3 +1320,4 @@ class TaskViewModel @Inject constructor(
         val notificationSound: String = "default"
     )
 }
+
