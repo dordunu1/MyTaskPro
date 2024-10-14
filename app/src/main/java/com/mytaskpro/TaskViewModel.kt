@@ -1180,9 +1180,9 @@ class TaskViewModel @Inject constructor(
             val overdueTasks = allTasks.filter { !it.isCompleted && it.dueDate.before(Date()) }
             val snoozedTasks = allTasks.filter { it.isSnoozed }
             val totalSnoozed = allTasks.sumOf { it.snoozeCount }
-            val mostUsedCategory = allTasks.groupBy { it.category }
+            val mostUsedCategory = allTasks.groupBy { it.category.displayName }
                 .maxByOrNull { it.value.size }
-                ?.key?.displayName ?: "None"
+                ?.key ?: "None"
             val completionRate = if (allTasks.isNotEmpty()) {
                 (completedTasks.size.toFloat() / allTasks.size * 100).roundToInt()
             } else 0
@@ -1196,7 +1196,8 @@ class TaskViewModel @Inject constructor(
                 "Tasks with Reminders" to tasksWithReminders.size.toString(),
                 "Overdue Tasks" to overdueTasks.size.toString(),
                 "Currently Snoozed Tasks" to snoozedTasks.size.toString(),
-                "Total Times Tasks Snoozed" to totalSnoozed.toString()
+                "Total Times Tasks Snoozed" to totalSnoozed.toString(),
+                "Most Used Category" to mostUsedCategory
             )
 
             val categoryBreakdown = getCategoryBreakdown(allTasks)

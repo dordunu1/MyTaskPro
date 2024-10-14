@@ -427,24 +427,27 @@ fun DetailedAnalytics(viewModel: TaskViewModel) {
                 title = "Task Categories",
                 content = data.categoryBreakdown,
                 categoryColors = categoryColors,
-                onItemClick = { expandedSection = it }
+                onItemClick = { category -> expandedSection = "Category: $category" }
             )
 
             AnalyticsCard(
                 title = "Recent Activity",
                 content = data.recentActivity,
                 categoryColors = categoryColors,
-                onItemClick = { expandedSection = it }
+                onItemClick = { } // Empty lambda to make it non-clickable
             )
         }
     }
 
     // Show dialog with expanded details when a section is clicked
     expandedSection?.let { section ->
-        val detailedTasks = analyticsData?.detailedTasks?.get(section) ?: emptyList()
+        val tasks = when {
+            section.startsWith("Category:") -> analyticsData?.detailedTasks?.get(section)
+            else -> analyticsData?.detailedTasks?.get(section)
+        } ?: emptyList()
         ExpandedDetailsDialog(
             title = section,
-            tasks = detailedTasks,
+            tasks = tasks,
             onDismiss = { expandedSection = null }
         )
     }
