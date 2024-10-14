@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class], version = 9) // Update version to 9
+@Database(entities = [Task::class, Note::class], version = 10)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
@@ -34,7 +34,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_4_6,
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
                     .build()
                 INSTANCE = instance
@@ -94,54 +95,60 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE tasks ADD COLUMN completionDate INTEGER")
             }
         }
+
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Create a temporary table with the new schema
                 database.execSQL(
                     """
-            CREATE TABLE tasks_temp (
-                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT NOT NULL,
-                category TEXT NOT NULL,
-                dueDate INTEGER NOT NULL,
-                reminderTime INTEGER,
-                isCompleted INTEGER NOT NULL,
-                completionDate INTEGER,
-                isSnoozed INTEGER NOT NULL,
-                snoozeCount INTEGER NOT NULL,
-                showSnoozeOptions INTEGER NOT NULL,
-                notifyOnDueDate INTEGER NOT NULL,
-                repetitiveSettings TEXT
-            )
-        """
+                    CREATE TABLE tasks_temp (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        dueDate INTEGER NOT NULL,
+                        reminderTime INTEGER,
+                        isCompleted INTEGER NOT NULL,
+                        completionDate INTEGER,
+                        isSnoozed INTEGER NOT NULL,
+                        snoozeCount INTEGER NOT NULL,
+                        showSnoozeOptions INTEGER NOT NULL,
+                        notifyOnDueDate INTEGER NOT NULL,
+                        repetitiveSettings TEXT
+                    )
+                    """
                 )
 
-                // Copy data from the old table to the new table, converting the category
                 database.execSQL(
                     """
-            INSERT INTO tasks_temp (id, title, description, category, dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings)
-            SELECT id, title, description, 
-            CASE 
-                WHEN category = '0' THEN '{"type":"WORK","displayName":"Work"}'
-                WHEN category = '1' THEN '{"type":"SCHOOL","displayName":"School"}'
-                WHEN category = '2' THEN '{"type":"SOCIAL","displayName":"Social"}'
-                WHEN category = '3' THEN '{"type":"CRYPTO","displayName":"Crypto"}'
-                WHEN category = '4' THEN '{"type":"HEALTH","displayName":"Health"}'
-                WHEN category = '5' THEN '{"type":"MINDFULNESS","displayName":"Mindfulness"}'
-                WHEN category = '6' THEN '{"type":"INVOICES","displayName":"Invoices"}'
-                ELSE '{"type":"CUSTOM","displayName":"Custom"}'
-            END,
-            dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings
-            FROM tasks
-        """
+                    INSERT INTO tasks_temp (id, title, description, category, dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings)
+                    SELECT id, title, description, 
+                    CASE 
+                        WHEN category = '0' THEN '{"type":"WORK","displayName":"Work"}'
+                        WHEN category = '1' THEN '{"type":"SCHOOL","displayName":"School"}'
+                        WHEN category = '2' THEN '{"type":"SOCIAL","displayName":"Social"}'
+                        WHEN category = '3' THEN '{"type":"CRYPTO","displayName":"Crypto"}'
+                        WHEN category = '4' THEN '{"type":"HEALTH","displayName":"Health"}'
+                        WHEN category = '5' THEN '{"type":"MINDFULNESS","displayName":"Mindfulness"}'
+                        WHEN category = '6' THEN '{"type":"INVOICES","displayName":"Invoices"}'
+                        ELSE '{"type":"CUSTOM","displayName":"Custom"}'
+                    END,
+                    dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings
+                    FROM tasks
+                    """
                 )
 
-                // Drop the old table
                 database.execSQL("DROP TABLE tasks")
-
-                // Rename the new table to the original name
                 database.execSQL("ALTER TABLE tasks_temp RENAME TO tasks")
+            }
+        }
+
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add the lastModified column to the tasks table
+                database.execSQL("ALTER TABLE tasks ADD COLUMN lastModified INTEGER NOT NULL DEFAULT 0")
+
+                // Update the lastModified column with the current timestamp for existing tasks
+                database.execSQL("UPDATE tasks SET lastModified = strftime('%s', 'now') * 1000")
             }
         }
     }

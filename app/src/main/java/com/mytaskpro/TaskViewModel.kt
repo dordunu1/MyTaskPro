@@ -1234,6 +1234,7 @@ class TaskViewModel @Inject constructor(
         return tasks.map { task ->
             TaskSummary(
                 title = task.title,
+                description = task.description, // Add this line
                 category = task.category.displayName,
                 categoryColor = Color(task.category.color),
                 dueDate = SimpleDateFormat("EEE MMM dd HH:mm:ss 'GMT' yyyy", Locale.US).format(task.dueDate),

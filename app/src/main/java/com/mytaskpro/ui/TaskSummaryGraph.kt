@@ -42,6 +42,8 @@ import com.mytaskpro.data.Task
 import androidx.compose.ui.graphics.toArgb
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.TaskSummary
+import com.mytaskpro.ui.components.AIRecommendationSection
+import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
 import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.compose.component.textComponent
@@ -53,6 +55,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TaskSummaryGraph(
     viewModel: TaskViewModel,
+    aiRecommendationViewModel: AIRecommendationViewModel,
     modifier: Modifier = Modifier,
     onCloseClick: () -> Unit
 ) {
@@ -104,7 +107,7 @@ fun TaskSummaryGraph(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        ImprovementSuggestions(viewModel = viewModel)
+        AIRecommendationSection(viewModel = aiRecommendationViewModel)
     }
 }
 
@@ -594,6 +597,7 @@ fun ExpandedDetailsDialog(
             LazyColumn {
                 items(tasks) { task ->
                     TaskItem(task)
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
                 }
             }
         },
@@ -612,8 +616,9 @@ fun TaskItem(task: TaskSummary) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     ) {
-        Text(task.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(task.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(task.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             Box(
                 modifier = Modifier
                     .size(12.dp)
@@ -632,11 +637,6 @@ fun getCategoryColors(): Map<String, Color> {
     return CategoryType.values().associate { it.displayName to Color(it.color) }
 }
 
-@Composable
-fun ImprovementSuggestions(viewModel: TaskViewModel) {
-    // TODO: Implement improvement suggestions
-    Text("Improvement Suggestions Placeholder")
-}
 
 enum class TimeFrame(val displayName: String) {
     DAILY("Daily"),

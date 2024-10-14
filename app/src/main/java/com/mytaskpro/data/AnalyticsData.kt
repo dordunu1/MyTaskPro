@@ -12,6 +12,7 @@ data class AnalyticsData(
 data class TaskSummary(
     val title: String,
     val category: String,
+    val description: String,
     val categoryColor: Color,
     val dueDate: String,
     val reminder: String,

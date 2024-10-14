@@ -11,6 +11,7 @@ import com.mytaskpro.ui.MainScreen
 import com.mytaskpro.ui.TaskDetailScreen
 import com.mytaskpro.SettingsScreen
 import com.mytaskpro.SettingsViewModel
+import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 
@@ -19,7 +20,8 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 fun AppNavigation(
     taskViewModel: TaskViewModel,
     themeViewModel: ThemeViewModel,
-    settingsViewModel: SettingsViewModel, // Add this line
+    settingsViewModel: SettingsViewModel,
+    aiRecommendationViewModel: AIRecommendationViewModel, // Add this line
     isUserSignedIn: Boolean,
     onGoogleSignIn: () -> Unit,
     onSignOut: () -> Unit
@@ -27,7 +29,7 @@ fun AppNavigation(
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "main") {
-        composable("main") {
+        composable(route = "main") {
             MainScreen(
                 navController = navController,
                 taskViewModel = taskViewModel,
@@ -36,7 +38,8 @@ fun AppNavigation(
                 onSettingsClick = { navController.navigate("settings") },
                 onTaskClick = { taskId ->
                     navController.navigate("taskDetail/$taskId")
-                }
+                },
+                aiRecommendationViewModel = aiRecommendationViewModel  // Add this line
             )
         }
         composable("settings") {

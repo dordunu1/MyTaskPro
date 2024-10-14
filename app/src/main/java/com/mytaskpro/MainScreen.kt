@@ -25,6 +25,7 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.ui.components.HorizontalProgressBar
 import com.mytaskpro.ui.TaskSummaryGraph
+import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -37,7 +38,9 @@ fun MainScreen(
     themeViewModel: ThemeViewModel,
     isUserSignedIn: Boolean,
     onSettingsClick: () -> Unit,
-    onTaskClick: (Int) -> Unit
+    onTaskClick: (Int) -> Unit,
+    aiRecommendationViewModel: AIRecommendationViewModel,  // Add this line
+
 ) {
     val innerNavController = rememberNavController()
     val completionPercentage by taskViewModel.completionPercentage.collectAsState()
@@ -136,8 +139,9 @@ fun MainScreen(
                 if (showGraph) {
                     TaskSummaryGraph(
                         viewModel = taskViewModel,
+                        aiRecommendationViewModel = aiRecommendationViewModel,  // Add this line
                         modifier = Modifier.fillMaxWidth(),
-                        onCloseClick = { showGraph = false } // Add this line
+                        onCloseClick = { showGraph = false }
                     )
                 }
 

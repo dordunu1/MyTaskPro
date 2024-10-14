@@ -25,6 +25,11 @@ data class CategoryType(
         result = 31 * result + displayName.hashCode()
         return result
     }
+
+    // Add this method
+    override fun toString(): String {
+        return displayName
+    }
     companion object {
         val WORK = CategoryType("WORK", "Work", Icons.Default.Work, Color(0xFF4CAF50).toArgb())
         val SCHOOL = CategoryType("SCHOOL", "School", Icons.Default.School, Color(0xFF2196F3).toArgb())

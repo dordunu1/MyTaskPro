@@ -29,12 +29,15 @@ import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.SettingsViewModel
 import com.mytaskpro.ui.AppNavigation
+import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private lateinit var taskViewModel: TaskViewModel
+    private val taskViewModel: TaskViewModel by viewModels()
     private lateinit var googleSignInClient: GoogleSignInClient
+    private val aiRecommendationViewModel: AIRecommendationViewModel by viewModels()
+
     private val settingsViewModel: SettingsViewModel by viewModels()
 
     companion object {
@@ -63,8 +66,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        taskViewModel = ViewModelProvider(this)[TaskViewModel::class.java]
-
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MyTaskProApp()
+            MyTaskProApp(taskViewModel = taskViewModel, aiRecommendationViewModel = aiRecommendationViewModel)
         }
 
         handleIntent(intent)
@@ -93,7 +94,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun MyTaskProApp(
         themeViewModel: ThemeViewModel = viewModel(),
-        taskViewModel: TaskViewModel = viewModel()
+        taskViewModel: TaskViewModel = viewModel(),
+        aiRecommendationViewModel: AIRecommendationViewModel = viewModel(),
+        settingsViewModel: SettingsViewModel = viewModel()
     ) {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
         val isUserSignedIn by taskViewModel.isUserSignedIn.collectAsState()
@@ -108,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     taskViewModel = taskViewModel,
                     themeViewModel = themeViewModel,
                     settingsViewModel = settingsViewModel,
+                    aiRecommendationViewModel = aiRecommendationViewModel,
                     isUserSignedIn = isUserSignedIn,
                     onGoogleSignIn = { signIn() },
                     onSignOut = {

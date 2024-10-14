@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 9,
-    "identityHash": "e58e76791ab6782d1966d0254aea5f63",
+    "identityHash": "c429d1f4b58a6e8a98ac822615081a58",
     "entities": [
       {
         "tableName": "tasks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `dueDate` INTEGER NOT NULL, `reminderTime` INTEGER, `isCompleted` INTEGER NOT NULL, `notifyOnDueDate` INTEGER NOT NULL, `repetitiveSettings` TEXT, `showSnoozeOptions` INTEGER NOT NULL, `snoozeCount` INTEGER NOT NULL, `isSnoozed` INTEGER NOT NULL, `completionDate` INTEGER, `lastModified` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `dueDate` INTEGER NOT NULL, `reminderTime` INTEGER, `isCompleted` INTEGER NOT NULL, `notifyOnDueDate` INTEGER NOT NULL, `repetitiveSettings` TEXT, `showSnoozeOptions` INTEGER NOT NULL, `snoozeCount` INTEGER NOT NULL, `isSnoozed` INTEGER NOT NULL, `completionDate` INTEGER, `lastModified` INTEGER NOT NULL, `creationDate` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -89,6 +89,12 @@
           {
             "fieldPath": "lastModified",
             "columnName": "lastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creationDate",
+            "columnName": "creationDate",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -180,7 +186,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e58e76791ab6782d1966d0254aea5f63')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c429d1f4b58a6e8a98ac822615081a58')"
     ]
   }
 }
