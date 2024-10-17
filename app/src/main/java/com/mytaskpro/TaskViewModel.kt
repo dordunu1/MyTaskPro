@@ -46,17 +46,14 @@ import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseUser
 import com.mytaskpro.SettingsViewModel
 import kotlinx.coroutines.TimeoutCancellationException
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.DocumentChange
+import com.mytaskpro.domain.BadgeManager
+import com.mytaskpro.repository.BadgeRepository
 import com.mytaskpro.ui.TimeFrame
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import kotlin.math.roundToInt
-import kotlin.random.Random
+
 
 
 @HiltViewModel
@@ -69,7 +66,9 @@ class TaskViewModel @Inject constructor(
     private val workManager: WorkManager,
     private val firebaseAuth: FirebaseAuth,
     private val settingsViewModel: SettingsViewModel, // Inject SettingsViewModel
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val badgeRepository: BadgeRepository,
+    private val badgeManager: BadgeManager
 ) : AndroidViewModel(application as Application) {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
@@ -115,9 +114,42 @@ class TaskViewModel @Inject constructor(
     private val _customCategories = MutableStateFlow<List<CategoryType>>(emptyList())
     val customCategories: StateFlow<List<CategoryType>> = _customCategories.asStateFlow()
 
+    private val _currentBadge = MutableStateFlow<Badge>(Badge.NONE)
+    val currentBadge: StateFlow<Badge> = _currentBadge.asStateFlow()
+
+    private val _showBadgeAchievement = MutableStateFlow<Badge?>(null)
+    val showBadgeAchievement: StateFlow<Badge?> = _showBadgeAchievement.asStateFlow()
+
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(CategoryType::class.java, CategoryTypeAdapter())
         .create()
+
+    private val _showConfetti = MutableStateFlow(false)
+    val showConfetti: StateFlow<Boolean> = _showConfetti.asStateFlow()
+
+    fun showConfetti() {
+        _showConfetti.value = true
+    }
+
+    private fun updateCompletedTaskCount() {
+        viewModelScope.launch {
+            taskDao.getCompletedTaskCount().collect { count ->
+                _completedTaskCount.value = count
+            }
+        }
+    }
+
+    private var tasksCompleted = 0
+
+    private fun updateBadge() {
+        viewModelScope.launch {
+            val newBadge = badgeManager.evaluateBadge(tasksCompleted)
+            if (newBadge != _currentBadge.value) {
+                _currentBadge.value = newBadge
+                _showBadgeAchievement.value = newBadge
+            }
+        }
+    }
 
     val filteredAndSortedTasks = combine(
         _tasks,
@@ -163,6 +195,34 @@ class TaskViewModel @Inject constructor(
         observeNotes()
         checkUserSignInStatus()
         updateCompletionPercentage()
+        observeCurrentBadge()
+    }
+
+    private fun observeCurrentBadge() {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            badgeRepository.getBadgeInfoForUser(userId).collect { badgeInfo ->
+                _currentBadge.value = badgeInfo?.currentBadge ?: Badge.NONE
+            }
+        }
+    }
+
+    fun evaluateBadges() {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            val oldBadge = _currentBadge.value
+            val newBadge = badgeManager.evaluateBadge(_completedTaskCount.value)
+            if (newBadge != oldBadge) {
+                _currentBadge.value = newBadge
+                _showBadgeAchievement.value = newBadge
+                _showConfetti.value = true // Trigger confetti for new badge
+                badgeRepository.updateUserBadge(userId, newBadge)
+            }
+        }
+    }
+
+    fun dismissBadgeAchievement() {
+        _showBadgeAchievement.value = null
     }
 
     private fun checkUserSignInStatus() {
@@ -338,6 +398,18 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun saveTasksLocally() {
+        viewModelScope.launch {
+            try {
+                val tasks = taskDao.getAllTasksAsList()
+                storageManager.saveData(emptyList(), tasks) // Assuming you're not saving notes here
+                Log.d("TaskViewModel", "Tasks saved locally: ${tasks.size}")
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error saving tasks locally", e)
+            }
+        }
+    }
+
 
     private fun mergeTasks(localTasks: List<Task>, remoteTasks: List<Task>): List<Task> {
         val mergedTasks = mutableMapOf<Int, Task>()
@@ -412,6 +484,7 @@ class TaskViewModel @Inject constructor(
                 Log.e("TaskViewModel", "Error adding task: ${e.message}")
                 _taskAdditionStatus.value = TaskAdditionStatus.Error
             }
+            evaluateBadges()
         }
     }
 
@@ -766,19 +839,31 @@ class TaskViewModel @Inject constructor(
 
     fun updateTaskCompletion(taskId: Int, isCompleted: Boolean) {
         viewModelScope.launch {
-            val task = taskDao.getTaskById(taskId) ?: return@launch
-            val updatedTask = task.copy(isCompleted = isCompleted)
-            taskDao.updateTask(updatedTask)
-            if (isCompleted) {
-                cancelRepetitiveTask(taskId)
-                _completedTaskCount.value += 1
-            } else {
-                updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
-                _completedTaskCount.value -= 1
+            try {
+                val task = taskDao.getTaskById(taskId) ?: return@launch
+                val updatedTask = task.copy(isCompleted = isCompleted)
+                taskDao.updateTask(updatedTask)
+                if (isCompleted) {
+                    cancelRepetitiveTask(taskId)
+                    _completedTaskCount.value += 1
+                    _showConfetti.value = true // Trigger confetti
+                } else {
+                    updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
+                    _completedTaskCount.value -= 1
+                }
+                updateWidget()
+                updateCompletionPercentage()
+
+                // Evaluate badges immediately after updating task completion
+                evaluateBadges()
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error updating task completion: ${e.message}")
             }
-            updateWidget()
-            updateCompletionPercentage()
         }
+    }
+
+    fun hideConfetti() {
+        _showConfetti.value = false
     }
 
 
@@ -1319,7 +1404,8 @@ class TaskViewModel @Inject constructor(
 
     data class UserPreferences(
         val defaultReminderTimeMinutes: Int = 15,
-        val notificationSound: String = "default"
+        val notificationSound: String = "default",
+        val showConfettiOnCompletion: Boolean = true  // Add this line
     )
 }
 

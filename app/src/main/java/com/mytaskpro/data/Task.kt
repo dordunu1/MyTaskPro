@@ -6,12 +6,14 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.google.firebase.firestore.PropertyName
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.Date
 
 @Entity(tableName = "tasks")
-@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class)
+@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class, LocalDateTimeListConverter::class)
 data class Task(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -20,18 +22,40 @@ data class Task(
     val category: CategoryType = CategoryType.WORK,
     val dueDate: Date = Date(),
     val reminderTime: Date? = null,
-    val isCompleted: Boolean = false,
+
+    // Added PropertyName annotation to ensure correct Firestore field mapping
+    @get:PropertyName("completed") @set:PropertyName("completed")
+    var isCompleted: Boolean = false,
+
     val notifyOnDueDate: Boolean = true,
     val repetitiveSettings: RepetitiveTaskSettings? = null,
     val showSnoozeOptions: Boolean = false,
     val snoozeCount: Int = 0,
-    val isSnoozed: Boolean = false,
+
+    // Added PropertyName annotation to ensure correct Firestore field mapping
+    @get:PropertyName("snoozed") @set:PropertyName("snoozed")
+    var isSnoozed: Boolean = false,
+
     val completionDate: Date? = null,
     val lastModified: Long = System.currentTimeMillis(),
-    val creationDate: Date = Date() // Add this line
+    val creationDate: Date = Date(),
+    val snoozeHistory: List<LocalDateTime> = emptyList()
 ) {
+    // Removed @set:PropertyName since this is a read-only property
+    @get:PropertyName("categoryColor")
     val categoryColor: Int
         get() = category.color
+
+
+    fun addSnooze(dateTime: LocalDateTime): Task {
+        val updatedSnoozeHistory = snoozeHistory.toMutableList()
+        updatedSnoozeHistory.add(dateTime)
+        return copy(
+            snoozeCount = snoozeCount + 1,
+            snoozeHistory = updatedSnoozeHistory,
+            isSnoozed = true
+        )
+    }
 }
 
 class RepetitiveTaskSettingsConverter {
@@ -68,5 +92,18 @@ class DateConverter {
     @TypeConverter
     fun dateToTimestamp(date: Date?): Long? {
         return date?.time
+    }
+}
+
+class LocalDateTimeListConverter {
+    @TypeConverter
+    fun fromLocalDateTimeList(value: List<LocalDateTime>): String {
+        return value.joinToString(",") { it.toEpochSecond(ZoneOffset.UTC).toString() }
+    }
+
+    @TypeConverter
+    fun toLocalDateTimeList(value: String): List<LocalDateTime> {
+        return if (value.isBlank()) emptyList()
+        else value.split(",").map { LocalDateTime.ofEpochSecond(it.toLong(), 0, ZoneOffset.UTC) }
     }
 }

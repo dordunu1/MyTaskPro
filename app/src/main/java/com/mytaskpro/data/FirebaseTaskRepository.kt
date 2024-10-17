@@ -17,7 +17,9 @@ class FirebaseTaskRepository @Inject constructor(
         val currentUser = authRepository.currentUser.value
         val userId = currentUser?.uid ?: return localTasks
         val remoteTasks = getRemoteTasks(userId)
-        val mergedTasks = mergeTasks(localTasks, remoteTasks)
+
+        // Fix: merge with priority to remote task states, especially `isCompleted`
+        val mergedTasks = mergeTasksWithPriority(localTasks, remoteTasks)
         updateRemoteTasks(userId, mergedTasks)
         return mergedTasks
     }
@@ -34,12 +36,12 @@ class FirebaseTaskRepository @Inject constructor(
         val batch = firestore.batch()
         val userTasksRef = tasksCollection.document(userId).collection("userTasks")
 
-        // Delete all existing tasks
+        // Delete all existing tasks in Firestore
         userTasksRef.get().await().documents.forEach { doc ->
             batch.delete(doc.reference)
         }
 
-        // Add all merged tasks
+        // Add all merged tasks with priority adjustments
         tasks.forEach { task ->
             val docRef = userTasksRef.document(task.id.toString())
             batch.set(docRef, task)
@@ -48,13 +50,23 @@ class FirebaseTaskRepository @Inject constructor(
         batch.commit().await()
     }
 
-    private fun mergeTasks(localTasks: List<Task>, remoteTasks: List<Task>): List<Task> {
+    // Custom merge function with priority for `isCompleted`
+    private fun mergeTasksWithPriority(localTasks: List<Task>, remoteTasks: List<Task>): List<Task> {
         val mergedTasks = mutableMapOf<Int, Task>()
 
+        // Combine tasks from both local and remote
         (localTasks + remoteTasks).forEach { task ->
             val existingTask = mergedTasks[task.id]
-            if (existingTask == null || task.lastModified > existingTask.lastModified) {
+            if (existingTask == null) {
                 mergedTasks[task.id] = task
+            } else {
+                // If task exists both locally and remotely, give priority to the remote's `isCompleted` state
+                val mergedTask = if (task.lastModified > existingTask.lastModified) {
+                    task.copy(isCompleted = existingTask.isCompleted || task.isCompleted)
+                } else {
+                    existingTask.copy(isCompleted = existingTask.isCompleted || task.isCompleted)
+                }
+                mergedTasks[task.id] = mergedTask
             }
         }
 

@@ -23,10 +23,6 @@ class TaskAnalyzer @Inject constructor() {
         return tasks.filter { !it.isCompleted && it.dueDate.before(now) }
     }
 
-    fun getFrequentlyPostponedTasks(tasks: List<Task>): List<Task> {
-        return tasks.filter { it.snoozeCount > 3 }
-    }
-
     fun getRecentlyCreatedTasks(tasks: List<Task>): List<Task> {
         val oneWeekAgo = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -7) }.time
         return tasks.filter { it.creationDate.after(oneWeekAgo) }
@@ -39,6 +35,11 @@ class TaskAnalyzer @Inject constructor() {
 
     fun analyzeTaskCategories(tasks: List<Task>): Map<String, List<Task>> {
         return tasks.groupBy { it.category.toString() }
+    }
+
+    fun getFrequentlySnoozedTasks(tasks: List<Task>): List<Task> {
+        val snoozeThreshold = 2 // Consider a task "frequently snoozed" if snoozed 3 or more times
+        return tasks.filter { it.snoozeCount >= snoozeThreshold }
     }
 
     fun analyzeProductiveTimeSlots(tasks: List<Task>, recentActions: List<UserAction>): List<Pair<Int, Int>> {

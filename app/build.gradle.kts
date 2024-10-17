@@ -85,6 +85,8 @@ dependencies {
     implementation ("androidx.camera:camera-camera2:1.2.3")
     implementation ("com.patrykandpatrick.vico:compose:1.6.5")
     implementation ("com.patrykandpatrick.vico:compose-m3:1.12.0")
+    implementation ("nl.dionsegijn:konfetti-compose:2.0.3")
+
 
 
 

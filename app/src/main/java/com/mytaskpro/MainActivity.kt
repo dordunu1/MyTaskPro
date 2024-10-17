@@ -37,7 +37,6 @@ class MainActivity : ComponentActivity() {
     private val taskViewModel: TaskViewModel by viewModels()
     private lateinit var googleSignInClient: GoogleSignInClient
     private val aiRecommendationViewModel: AIRecommendationViewModel by viewModels()
-
     private val settingsViewModel: SettingsViewModel by viewModels()
 
     companion object {
@@ -60,6 +59,16 @@ class MainActivity : ComponentActivity() {
         } catch (e: ApiException) {
             Toast.makeText(this, "Google Sign-In Failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        taskViewModel.syncTasksWithFirebase()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        taskViewModel.saveTasksLocally()
     }
 
     @OptIn(ExperimentalMaterial3Api::class)

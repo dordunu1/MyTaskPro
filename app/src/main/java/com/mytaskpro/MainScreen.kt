@@ -20,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mytaskpro.data.Badge
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.data.CategoryType
@@ -29,6 +30,49 @@ import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.mytaskpro.ui.BadgeIcon
+import com.mytaskpro.ui.BadgeAchievementPopup
+
+
+@Composable
+fun BadgeInfoDialog(currentBadge: Badge, tasksCompleted: Int, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Your Current Badge") },
+        text = {
+            Column {
+                Text("Your current badge is: ${currentBadge.name}")
+                Text("Tasks completed: $tasksCompleted")
+                Text("Next badge: ${getNextBadge(currentBadge)}")
+                Text("Tasks needed for next badge: ${getTasksNeededForNextBadge(currentBadge, tasksCompleted)}")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
+}
+
+fun getNextBadge(currentBadge: Badge): String {
+    return when (currentBadge) {
+        Badge.NONE -> "BRONZE"
+        Badge.BRONZE -> "SILVER"
+        Badge.SILVER -> "GOLD"
+        Badge.GOLD -> "DIAMOND"
+        Badge.DIAMOND -> "DIAMOND (Highest)"
+    }
+}
+fun getTasksNeededForNextBadge(currentBadge: Badge, tasksCompleted: Int): Int {
+    return when (currentBadge) {
+        Badge.NONE -> 30 - tasksCompleted
+        Badge.BRONZE -> 80 - tasksCompleted
+        Badge.SILVER -> 200 - tasksCompleted
+        Badge.GOLD -> 350 - tasksCompleted
+        Badge.DIAMOND -> 0
+    }.coerceAtLeast(0)
+}
 
 @ExperimentalMaterial3Api
 @Composable
@@ -44,163 +88,192 @@ fun MainScreen(
 ) {
     val innerNavController = rememberNavController()
     val completionPercentage by taskViewModel.completionPercentage.collectAsState()
-    var showGraph by remember { mutableStateOf(false) } // Add this line
+    var showGraph by remember { mutableStateOf(false) }
+    val currentBadge by taskViewModel.currentBadge.collectAsState()
+    val showBadgeAchievement by taskViewModel.showBadgeAchievement.collectAsState()
+    var showBadgeInfo by remember { mutableStateOf(false) }
+    val completedTaskCount by taskViewModel.completedTaskCount.collectAsState()
+    val showConfetti by taskViewModel.showConfetti.collectAsState()
 
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("MyTaskPro")
-                            IconButton(onClick = onSettingsClick) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Settings",
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                )
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
-                    listOf(
-                        Screen.Tasks,
-                        Screen.Notes
-                    ).forEach { screen ->
-                        NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = null) },
-                            label = { Text(screen.label) },
-                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                            onClick = {
-                                innerNavController.navigate(screen.route) {
-                                    popUpTo(innerNavController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    }
-                }
-            }
-        ) { innerPadding ->
-            Column(modifier = Modifier.padding(innerPadding)) {
-                // Progress bar and graph button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HorizontalProgressBar(
-                        percentage = completionPercentage,
-                        height = 8f,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = { showGraph = !showGraph }, // Toggle showGraph
-                        modifier = Modifier.size(24.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.BarChart,
-                            contentDescription = "Task Summary",
-                            tint = MaterialTheme.colorScheme.primary
+                        Text("MyTaskPro")
+                        BadgeIcon(
+                            badge = currentBadge,
+                            onClick = { showBadgeInfo = true }
                         )
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+                listOf(
+                    Screen.Tasks,
+                    Screen.Notes
+                ).forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.label) },
+                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        onClick = {
+                            innerNavController.navigate(screen.route) {
+                                popUpTo(innerNavController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
                 }
+            }
+        }
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            // Progress bar and graph button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HorizontalProgressBar(
+                    percentage = completionPercentage,
+                    height = 8f,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = { showGraph = !showGraph },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = "Task Summary",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
-                // Show graph if button is clicked
-                if (showGraph) {
-                    TaskSummaryGraph(
+            // Show graph if button is clicked
+            if (showGraph) {
+                TaskSummaryGraph(
+                    viewModel = taskViewModel,
+                    aiRecommendationViewModel = aiRecommendationViewModel,
+                    modifier = Modifier.fillMaxWidth(),
+                    onCloseClick = { showGraph = false }
+                )
+            }
+
+            NavHost(
+                navController = innerNavController,
+                startDestination = Screen.Tasks.route,
+                modifier = Modifier.weight(1f)
+            ) {
+                composable(Screen.Tasks.route) {
+                    TasksScreen(
                         viewModel = taskViewModel,
-                        aiRecommendationViewModel = aiRecommendationViewModel,  // Add this line
-                        modifier = Modifier.fillMaxWidth(),
-                        onCloseClick = { showGraph = false }
+                        onTaskClick = onTaskClick,
+                        onEditTask = { taskId ->
+                            innerNavController.navigate("${Screen.EditTask.route}/$taskId")
+                        }
                     )
                 }
 
-                NavHost(
-                    navController = innerNavController,
-                    startDestination = Screen.Tasks.route,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    composable(Screen.Tasks.route) {
-                        TasksScreen(
-                            viewModel = taskViewModel,
-                            onTaskClick = onTaskClick,
-                            onEditTask = { taskId ->
-                                innerNavController.navigate("${Screen.EditTask.route}/$taskId")
-                            }
-                        )
-                    }
+                composable(Screen.Notes.route) {
+                    NotesScreen(viewModel = taskViewModel)
+                }
 
-                    composable(Screen.Notes.route) {
-                        NotesScreen(viewModel = taskViewModel)
-                    }
+                composable(
+                    route = "${Screen.EditTask.route}/{taskId}",
+                    arguments = listOf(navArgument("taskId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
+                    EditTaskScreen(
+                        taskId = taskId,
+                        viewModel = taskViewModel,
+                        onNavigateBack = { innerNavController.popBackStack() }
+                    )
+                }
 
-                    composable(
-                        route = "${Screen.EditTask.route}/{taskId}",
-                        arguments = listOf(navArgument("taskId") { type = NavType.IntType })
-                    ) { backStackEntry ->
-                        val taskId = backStackEntry.arguments?.getInt("taskId") ?: return@composable
-                        EditTaskScreen(
-                            taskId = taskId,
-                            viewModel = taskViewModel,
-                            onNavigateBack = { innerNavController.popBackStack() }
-                        )
-                    }
+                composable(
+                    route = "${Screen.EditNote.route}/{noteId}",
+                    arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
+                    EditNoteScreen(
+                        viewModel = taskViewModel,
+                        noteId = noteId,
+                        onNavigateBack = { innerNavController.popBackStack() }
+                    )
+                }
 
-                    composable(
-                        route = "${Screen.EditNote.route}/{noteId}",
-                        arguments = listOf(navArgument("noteId") { type = NavType.IntType })
-                    ) { backStackEntry ->
-                        val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
-                        EditNoteScreen(
-                            viewModel = taskViewModel,
-                            noteId = noteId,
-                            onNavigateBack = { innerNavController.popBackStack() }
-                        )
-                    }
-
-                    composable(
-                        route = "note_detail/{noteId}",
-                        arguments = listOf(navArgument("noteId") { type = NavType.IntType })
-                    ) { backStackEntry ->
-                        val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
-                        NoteDetailScreen(
-                            viewModel = taskViewModel,
-                            noteId = noteId,
-                            navController = innerNavController
-                        )
-                    }
+                composable(
+                    route = "note_detail/{noteId}",
+                    arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val noteId = backStackEntry.arguments?.getInt("noteId") ?: return@composable
+                    NoteDetailScreen(
+                        viewModel = taskViewModel,
+                        noteId = noteId,
+                        navController = innerNavController
+                    )
                 }
             }
+        }
+        if (showConfetti) {
+            ConfettiAnimation(
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (showBadgeInfo) {
+            BadgeInfoDialog(
+                currentBadge = currentBadge,
+                tasksCompleted = completedTaskCount,
+                onDismiss = { showBadgeInfo = false }
+            )
+        }
+
+        showBadgeAchievement?.let { badge ->
+            BadgeAchievementPopup(
+                badge = badge,
+                onDismiss = { taskViewModel.dismissBadgeAchievement() }
+            )
         }
     }
 }

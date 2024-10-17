@@ -15,7 +15,12 @@ import javax.inject.Singleton
 import com.mytaskpro.data.repository.AIRecommendationRepository
 import com.mytaskpro.data.repository.AIRecommendationRepositoryImpl
 import com.google.firebase.firestore.FirebaseFirestore
+import com.mytaskpro.data.BadgeDao
 import com.mytaskpro.data.repository.UserActionRepository
+import com.mytaskpro.domain.BadgeEvaluator
+import com.mytaskpro.domain.BadgeManager
+import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
+import com.mytaskpro.repository.BadgeRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -36,6 +41,28 @@ object AppModule {
             "task_database"
         ).build()
     }
+
+    @Provides
+    @Singleton
+    fun provideBadgeDao(database: AppDatabase): BadgeDao {
+        return database.badgeDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTaskCompletionBadgeEvaluator(): TaskCompletionBadgeEvaluator {
+        return TaskCompletionBadgeEvaluator()
+    }
+
+    @Provides
+    @Singleton
+    fun provideBadgeManager(
+        badgeRepository: BadgeRepository,
+        taskCompletionBadgeEvaluator: TaskCompletionBadgeEvaluator
+    ): BadgeManager {
+        return BadgeManager(badgeRepository, taskCompletionBadgeEvaluator)
+    }
+
 
     @Provides
     @Singleton

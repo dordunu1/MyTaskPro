@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import java.util.Date
+import com.mytaskpro.data.Badge
 
 class Converters {
     private val gson: Gson = GsonBuilder()
@@ -31,6 +32,12 @@ class Converters {
     fun fromList(list: List<String>): String {
         return gson.toJson(list)
     }
+
+    @TypeConverter
+    fun fromBadge(badge: Badge): String = badge.name
+
+    @TypeConverter
+    fun toBadge(value: String): Badge = Badge.valueOf(value)
 
     @TypeConverter
     fun fromRepetitiveTaskSettings(settings: RepetitiveTaskSettings?): String? {

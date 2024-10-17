@@ -31,6 +31,9 @@ import com.mytaskpro.viewmodel.TaskViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import com.mytaskpro.viewmodel.TaskViewModel.SortOption
+import androidx.compose.ui.text.style.TextDecoration
+import kotlinx.coroutines.delay
+
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -46,6 +49,7 @@ fun getColorForDueDate(dueDate: Date): Color {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(
     viewModel: TaskViewModel,
@@ -57,6 +61,7 @@ fun TasksScreen(
     val filterOption by viewModel.filterOption.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val completedTaskCount by viewModel.completedTaskCount.collectAsState(initial = 0)
+    val showConfetti by viewModel.showConfetti.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var editingTask by remember { mutableStateOf<Task?>(null) }
@@ -68,65 +73,79 @@ fun TasksScreen(
 
     val lazyListState = rememberLazyListState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("✅ Tasks") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White
+    LaunchedEffect(showConfetti) {
+        if (showConfetti) {
+            delay(2000) // 2 seconds delay, adjust as needed
+            viewModel.hideConfetti()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("✅ Tasks") },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = Color.White
+                    )
                 )
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showCategorySelection = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Task")
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            VibrantBlue.copy(alpha = 0.05f),
-                            VibrantPurple.copy(alpha = 0.05f)
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { showCategorySelection = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add Task")
+                }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                VibrantBlue.copy(alpha = 0.05f),
+                                VibrantPurple.copy(alpha = 0.05f)
+                            )
                         )
                     )
-                )
-        ) {
-            FilterAndSortBar(
-                filterOption = filterOption,
-                sortOption = sortOption,
-                completedTaskCount = completedTaskCount,
-                onFilterChanged = viewModel::updateFilterOption,
-                onSortChanged = viewModel::updateSortOption,
-                customCategories = customCategories
-            )
-
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                items(
-                    items = tasks,
-                    key = { task -> task.id }
-                ) { task ->
-                    TaskItem(
-                        task = task,
-                        viewModel = viewModel,
-                        onEditTask = { editingTask = it },
-                        onTaskClick = onTaskClick
-                    )
+                FilterAndSortBar(
+                    filterOption = filterOption,
+                    sortOption = sortOption,
+                    completedTaskCount = completedTaskCount,
+                    onFilterChanged = viewModel::updateFilterOption,
+                    onSortChanged = viewModel::updateSortOption,
+                    customCategories = customCategories
+                )
+
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    items(
+                        items = tasks,
+                        key = { task -> task.id }
+                    ) { task ->
+                        TaskItem(
+                            task = task,
+                            viewModel = viewModel,
+                            onEditTask = { editingTask = it },
+                            onTaskClick = onTaskClick
+                        )
+                    }
                 }
             }
+        }
+        if (showConfetti) {
+            ConfettiAnimation(
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 
@@ -195,6 +214,7 @@ fun TasksScreen(
     }
 }
 
+
 @Composable
 fun TaskItem(
     task: Task,
@@ -239,17 +259,20 @@ fun TaskItem(
                         style = MaterialTheme.typography.titleMedium,
                         color = getColorForDueDate(task.dueDate),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                     )
                     Text(
                         text = task.description,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                     )
                     Text(
                         text = "Due: ${formatDate(task.dueDate)}",
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                     )
                 }
                 if (task.reminderTime != null) {
@@ -294,6 +317,7 @@ fun TaskItem(
             }
         }
     }
+
 
     if (showDeleteConfirmation) {
         AlertDialog(

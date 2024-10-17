@@ -8,11 +8,12 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class], version = 10)
+@Database(entities = [Task::class, Note::class, UserBadgeInfo::class], version = 11)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun noteDao(): NoteDao
+    abstract fun badgeDao(): BadgeDao
 
     companion object {
         @Volatile
@@ -35,7 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_6_7,
                         MIGRATION_7_8,
                         MIGRATION_8_9,
-                        MIGRATION_9_10
+                        MIGRATION_9_10,
+                        MIGRATION_10_11
                     )
                     .build()
                 INSTANCE = instance
@@ -151,5 +153,18 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("UPDATE tasks SET lastModified = strftime('%s', 'now') * 1000")
             }
         }
+    }
+}
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+           override fun migrate(database: SupportSQLiteDatabase) {
+             database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS user_badge_info (
+                        userId TEXT PRIMARY KEY NOT NULL,
+                        currentBadge TEXT NOT NULL,
+                        tasksCompleted INTEGER NOT NULL,
+                        streak INTEGER NOT NULL,
+                        lastUpdated INTEGER NOT NULL
+                    )
+                """)
     }
 }

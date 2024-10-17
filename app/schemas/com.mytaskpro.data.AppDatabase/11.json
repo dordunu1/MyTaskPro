@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 10,
-    "identityHash": "496cf5f6c1a852f307f3b11d849b4ee8",
+    "version": 11,
+    "identityHash": "251c4619988ff0d0095156c1fac75209",
     "entities": [
       {
         "tableName": "tasks",
@@ -187,12 +187,56 @@
         },
         "indices": [],
         "foreignKeys": []
+      },
+      {
+        "tableName": "user_badge_info",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `currentBadge` TEXT NOT NULL, `tasksCompleted` INTEGER NOT NULL, `streak` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentBadge",
+            "columnName": "currentBadge",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tasksCompleted",
+            "columnName": "tasksCompleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "streak",
+            "columnName": "streak",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '496cf5f6c1a852f307f3b11d849b4ee8')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '251c4619988ff0d0095156c1fac75209')"
     ]
   }
 }
