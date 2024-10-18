@@ -19,6 +19,17 @@ import java.time.ZoneId
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import com.mytaskpro.data.RepetitiveTaskSettings
+import com.mytaskpro.utils.TimeUtils
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import java.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,8 +117,9 @@ fun AddTaskDialog(
                     onClick = { showDueTimePicker = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("⏰ Set Due Time: $dueTime")
+                    Text("⏰ Set Due Time: ${TimeUtils.formatTime(dueTime)}")
                 }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -143,7 +155,7 @@ fun AddTaskDialog(
                         onClick = { showReminderTimePicker = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("⏰ Set Reminder Time: $reminderTime")
+                        Text("⏰ Set Reminder Time: ${TimeUtils.formatTime(reminderTime)}")
                     }
                 }
             }
@@ -175,44 +187,46 @@ fun AddTaskDialog(
     )
 
     if (showDueDatePicker) {
-        CustomDatePickerDialog(
-            initialDate = dueDate,
-            onDateSelected = {
-                dueDate = it
+        MyDatePickerDialog(
+            onDismissRequest = { showDueDatePicker = false },
+            onDateSelected = { selectedDate ->
+                dueDate = selectedDate
                 showDueDatePicker = false
             },
-            onDismiss = { showDueDatePicker = false }
+            initialDate = dueDate
         )
     }
 
     if (showDueTimePicker) {
-        StableTimePickerDialog(
+        MyTimePickerDialog(
             onDismissRequest = { showDueTimePicker = false },
             onTimeSelected = { selectedTime ->
                 dueTime = selectedTime
                 showDueTimePicker = false
-            }
+            },
+            initialTime = dueTime
         )
     }
 
     if (showReminderDatePicker) {
-        CustomDatePickerDialog(
-            initialDate = reminderDate,
-            onDateSelected = {
-                reminderDate = it
+        MyDatePickerDialog(
+            onDismissRequest = { showReminderDatePicker = false },
+            onDateSelected = { selectedDate ->
+                reminderDate = selectedDate
                 showReminderDatePicker = false
             },
-            onDismiss = { showReminderDatePicker = false }
+            initialDate = reminderDate
         )
     }
 
     if (showReminderTimePicker) {
-        StableTimePickerDialog(
+        MyTimePickerDialog(
             onDismissRequest = { showReminderTimePicker = false },
             onTimeSelected = { selectedTime ->
                 reminderTime = selectedTime
                 showReminderTimePicker = false
-            }
+            },
+            initialTime = reminderTime
         )
     }
 
@@ -225,5 +239,77 @@ fun AddTaskDialog(
                 showRepetitiveTaskDialog = false
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyTimePickerDialog(
+    onDismissRequest: () -> Unit,
+    onTimeSelected: (LocalTime) -> Unit,
+    initialTime: LocalTime
+) {
+    var showingPicker by remember { mutableStateOf(true) }
+
+    if (showingPicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = initialTime.hour,
+            initialMinute = initialTime.minute
+        )
+
+        AlertDialog(
+            onDismissRequest = onDismissRequest,
+            confirmButton = {
+                TextButton(onClick = {
+                    onTimeSelected(LocalTime.of(timePickerState.hour, timePickerState.minute))
+                    showingPicker = false
+                    onDismissRequest()
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissRequest) {
+                    Text("Cancel")
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyDatePickerDialog(
+    onDismissRequest: () -> Unit,
+    onDateSelected: (LocalDate) -> Unit,
+    initialDate: LocalDate
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    val selectedDate = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                    onDateSelected(selectedDate)
+                }
+                onDismissRequest()
+            }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }

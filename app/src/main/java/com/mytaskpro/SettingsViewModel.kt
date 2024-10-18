@@ -15,7 +15,7 @@ import java.util.Locale
 import javax.inject.Inject
 import android.content.Intent
 import android.net.Uri
-
+import com.mytaskpro.utils.TimeUtils
 
 
 class SettingsViewModel @Inject constructor() : ViewModel() {
@@ -229,7 +229,9 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     }
 
     private fun updateTimeFormat() {
-        // This function will be implemented to update time format throughout the app
+        TimeUtils.setUse24HourFormat(_is24HourFormat.value)
+        // Trigger a UI update if necessary
+        triggerForceRefresh()
     }
 
     private fun updateLocale() {

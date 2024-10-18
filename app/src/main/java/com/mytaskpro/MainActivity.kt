@@ -31,6 +31,7 @@ import com.mytaskpro.SettingsViewModel
 import com.mytaskpro.ui.AppNavigation
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.mytaskpro.utils.ThemeUtils
+import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -76,6 +77,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize TimeUtils with the current preference
+        TimeUtils.setUse24HourFormat(settingsViewModel.is24HourFormat.value)
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
@@ -99,7 +103,6 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
     }
-
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MyTaskProApp(
