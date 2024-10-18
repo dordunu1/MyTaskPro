@@ -249,7 +249,7 @@ fun TaskItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(12.dp)
                         .background(Color(task.category.color), CircleShape)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -441,7 +441,7 @@ fun FilterDropdown(
                         leadingIcon = {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(12.dp)
                                     .background(Color(category.color), CircleShape)
                             )
                         }

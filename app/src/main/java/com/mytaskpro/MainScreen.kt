@@ -101,14 +101,16 @@ fun MainScreen(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.Start,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("MyTaskPro")
+                        Spacer(modifier = Modifier.width(8.dp))
                         BadgeIcon(
                             badge = currentBadge,
                             onClick = { showBadgeInfo = true }
                         )
+                        Spacer(modifier = Modifier.weight(1f))
                         IconButton(onClick = onSettingsClick) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
