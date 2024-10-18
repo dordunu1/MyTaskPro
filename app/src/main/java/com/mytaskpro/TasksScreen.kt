@@ -2,6 +2,9 @@
 
 package com.mytaskpro.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -33,7 +36,6 @@ import java.util.*
 import com.mytaskpro.viewmodel.TaskViewModel.SortOption
 import androidx.compose.ui.text.style.TextDecoration
 import kotlinx.coroutines.delay
-
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -72,6 +74,11 @@ fun TasksScreen(
     val customCategories by viewModel.customCategories.collectAsState()
 
     val lazyListState = rememberLazyListState()
+    val hiddenTasks = remember { mutableStateListOf<Int>() }
+
+    fun resetHiddenTasks() {
+        hiddenTasks.clear()
+    }
 
     LaunchedEffect(showConfetti) {
         if (showConfetti) {
@@ -118,8 +125,14 @@ fun TasksScreen(
                     filterOption = filterOption,
                     sortOption = sortOption,
                     completedTaskCount = completedTaskCount,
-                    onFilterChanged = viewModel::updateFilterOption,
-                    onSortChanged = viewModel::updateSortOption,
+                    onFilterChanged = {
+                        viewModel.updateFilterOption(it)
+                        resetHiddenTasks()
+                    },
+                    onSortChanged = {
+                        viewModel.updateSortOption(it)
+                        resetHiddenTasks()
+                    },
                     customCategories = customCategories
                 )
 
@@ -129,14 +142,25 @@ fun TasksScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     items(
-                        items = tasks,
+                        items = tasks.filter { task ->
+                            when (filterOption) {
+                                is FilterOption.Completed -> true // Show all completed tasks
+                                else -> task.id !in hiddenTasks
+                            }
+                        },
                         key = { task -> task.id }
                     ) { task ->
                         TaskItem(
                             task = task,
                             viewModel = viewModel,
                             onEditTask = { editingTask = it },
-                            onTaskClick = onTaskClick
+                            onTaskClick = onTaskClick,
+                            onHideTask = { taskId ->
+                                if (filterOption !is FilterOption.Completed) {
+                                    hiddenTasks.add(taskId)
+                                }
+                            },
+                            isCompletedFilter = filterOption is FilterOption.Completed
                         )
                     }
                 }
@@ -214,110 +238,126 @@ fun TasksScreen(
     }
 }
 
-
 @Composable
 fun TaskItem(
     task: Task,
     viewModel: TaskViewModel,
     onTaskClick: (Int) -> Unit,
-    onEditTask: (Task) -> Unit
+    onEditTask: (Task) -> Unit,
+    onHideTask: (Int) -> Unit,
+    isCompletedFilter: Boolean
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var isVisible by remember { mutableStateOf(true) }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .clickable { onTaskClick(task.id) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (task.snoozeCount > 0)
-                MaterialTheme.colorScheme.surfaceVariant
-            else
-                MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(Color(task.category.color), CircleShape)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = getColorForDueDate(task.dueDate),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                    )
-                    Text(
-                        text = task.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                    )
-                    Text(
-                        text = "Due: ${formatDate(task.dueDate)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                    )
-                }
-                if (task.reminderTime != null) {
-                    Icon(
-                        imageVector = Icons.Default.Alarm,
-                        contentDescription = "Reminder set",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = { isCompleted ->
-                        viewModel.updateTaskCompletion(task.id, isCompleted)
-                    }
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                IconButton(
-                    onClick = {
-                        if (task.snoozeCount > 0) {
-                            viewModel.undoSnooze(task.id)
-                        } else {
-                            viewModel.toggleSnoozeOptions(task.id)
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_snooze_custom),
-                        contentDescription = if (task.snoozeCount > 0) "Undo Snooze" else "Snooze",
-                        tint = if (task.snoozeCount > 0) Color.Red else Color.Gray,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-            if (task.showSnoozeOptions && task.snoozeCount == 0) {
-                SnoozeOptions(task.id, viewModel)
-            }
+    LaunchedEffect(task.isCompleted) {
+        if (task.isCompleted && !isCompletedFilter) {
+            delay(2000) // Wait for 2 seconds (duration of confetti animation)
+            isVisible = false
+            delay(300) // Wait for the fade-out animation
+            onHideTask(task.id)
         }
     }
 
+    AnimatedVisibility(
+        visible = isVisible || isCompletedFilter,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .clickable { onTaskClick(task.id) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (task.snoozeCount > 0)
+                    MaterialTheme.colorScheme.surfaceVariant
+                else
+                    MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(Color(task.category.color), CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = task.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = getColorForDueDate(task.dueDate),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                        )
+                        Text(
+                            text = task.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                        )
+                        Text(
+                            text = "Due: ${formatDate(task.dueDate)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                        )
+                    }
+                    if (task.reminderTime != null) {
+                        Icon(
+                            imageVector = Icons.Default.Alarm,
+                            contentDescription = "Reminder set",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Checkbox(
+                        checked = task.isCompleted,
+                        onCheckedChange = { isCompleted ->
+                            viewModel.updateTaskCompletion(task.id, isCompleted)
+                        }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (task.snoozeCount > 0) {
+                                viewModel.undoSnooze(task.id)
+                            } else {
+                                viewModel.toggleSnoozeOptions(task.id)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_snooze_custom),
+                            contentDescription = if (task.snoozeCount > 0) "Undo Snooze" else "Snooze",
+                            tint = if (task.snoozeCount > 0) Color.Red else Color.Gray,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                if (task.showSnoozeOptions && task.snoozeCount == 0) {
+                    SnoozeOptions(task.id, viewModel)
+                }
+            }
+        }
+    }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -458,7 +498,7 @@ fun FilterDropdown(
                     leadingIcon = {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(12.dp)
                                 .background(Color(category.color), CircleShape)
                         )
                     }
