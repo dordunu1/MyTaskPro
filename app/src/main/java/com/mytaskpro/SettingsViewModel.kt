@@ -13,6 +13,10 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
+import android.content.Intent
+import android.net.Uri
+import dagger.hilt.android.lifecycle.HiltViewModel
+
 
 class SettingsViewModel @Inject constructor() : ViewModel() {
 
@@ -27,7 +31,8 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _currentTheme = MutableStateFlow("Default")
     val currentTheme = _currentTheme.asStateFlow()
 
-    private val _availableThemes = MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
+    private val _availableThemes =
+        MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
     val availableThemes = _availableThemes.asStateFlow()
 
     private val _currentLanguage = MutableStateFlow(Locale.getDefault().language)
@@ -61,7 +66,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
 
     private val _lastSyncTime = MutableStateFlow<String?>(null)
     val lastSyncTime: StateFlow<String?> = _lastSyncTime.asStateFlow()
-
 
 
     // Premium Features
@@ -150,21 +154,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    fun exportData() {
-        // Implement data export logic
-    }
-
-    fun importData() {
-        // Implement data import logic
-    }
-
-    fun provideFeedback() {
-        // Implement feedback submission logic
-    }
-
-    fun reportIssue() {
-        // Implement issue reporting logic
-    }
 
     enum class SyncStatus { Idle, Syncing, Success, Error }
 
@@ -217,4 +206,20 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
             _forceRefresh.value += 1
         }
     }
+
+
+    fun getPlayStoreIntent(): Intent {
+        return Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse("market://details?id=com.mytaskpro")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+
+    fun getPlayStoreWebIntent(): Intent {
+        return Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro")
+        )
+    }
 }
+

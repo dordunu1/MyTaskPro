@@ -1,27 +1,7 @@
 package com.mytaskpro
 
+import android.content.ActivityNotFoundException
 import android.util.Log
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.mytaskpro.viewmodel.TaskViewModel
-import com.mytaskpro.viewmodel.ThemeViewModel
-import java.time.LocalTime
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.time.delay
-import androidx.compose.runtime.LaunchedEffect
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.mytaskpro.ui.theme.AppTheme
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,13 +9,28 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
-
+import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mytaskpro.ui.theme.AppTheme
+import com.mytaskpro.viewmodel.TaskViewModel
+import com.mytaskpro.viewmodel.ThemeViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.LocalTime
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,7 +76,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             PremiumSubscriptionSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
-            FeedbackSection(settingsViewModel)
+            FeedbackSection(viewModel = settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
             AboutSection(settingsViewModel)
         }
@@ -430,19 +425,212 @@ fun PremiumSubscriptionSection(viewModel: SettingsViewModel) {
 
 @Composable
 fun FeedbackSection(viewModel: SettingsViewModel) {
+    var showFeedbackDialog by remember { mutableStateOf(false) }
+
     SettingsSection(title = "Feedback") {
         Column(modifier = Modifier.fillMaxWidth()) {
             TextButton(
-                onClick = { viewModel.provideFeedback() },
+                onClick = { showFeedbackDialog = true },
                 modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
             ) {
                 Text("Provide Feedback")
             }
             TextButton(
-                onClick = { viewModel.reportIssue() },
+                onClick = { showFeedbackDialog = true },
                 modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
             ) {
                 Text("Report Issue")
+            }
+        }
+    }
+
+    if (showFeedbackDialog) {
+        FeedbackDialog(
+            onDismiss = { showFeedbackDialog = false },
+            viewModel = viewModel
+        )
+    }
+}
+
+@Composable
+fun FeedbackDialog(onDismiss: () -> Unit, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("We Value Your Input!", style = MaterialTheme.typography.headlineSmall) },
+        text = {
+            Text(
+                "Your feedback helps us improve MyTaskPro for everyone. We'd love to hear your thoughts, suggestions, or any issues you've encountered.\n\n" +
+                        "Please consider leaving a review on the Play Store. It only takes a moment and makes a big difference!",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    try {
+                        context.startActivity(viewModel.getPlayStoreIntent())
+                    } catch (e: ActivityNotFoundException) {
+                        context.startActivity(viewModel.getPlayStoreWebIntent())
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text("Go to Play Store")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Maybe Later")
+            }
+        }
+    )
+}
+
+@Composable
+fun TermsOfServiceDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Terms of Service",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Text(
+                    """
+                    Welcome to MyTaskPro! These Terms of Service govern your use of our app and services. By using MyTaskPro, you agree to these terms.
+
+                    1. Use of the App
+                    MyTaskPro is a task management app designed to help you organize and track your tasks. You may use the app for personal or professional purposes in accordance with these terms.
+
+                    2. Account Creation
+                    While you can use many features of MyTaskPro without an account, syncing tasks with Google requires signing in with your Google account. This is to ensure your data can be securely stored and synchronized across devices.
+
+                    3. User Responsibilities
+                    You are responsible for maintaining the confidentiality of your account information and for all activities that occur under your account. You agree to use the app in compliance with all applicable laws and regulations.
+
+                    4. Data and Privacy
+                    We respect your privacy and handle your data in accordance with our Privacy Policy. By using MyTaskPro, you consent to the collection and use of information as detailed in our Privacy Policy.
+
+                    5. Intellectual Property
+                    All content and functionality within MyTaskPro, including but not limited to text, graphics, logos, and software, is the property of MyTaskPro or its licensors and is protected by copyright and other intellectual property laws.
+
+                    6. Premium Features
+                    MyTaskPro offers both free and premium features. Premium features are available through in-app purchases. Prices and features are subject to change.
+
+                    7. Modifications to the App
+                    We reserve the right to modify or discontinue, temporarily or permanently, the app or any features or portions thereof without prior notice.
+
+                    8. Limitation of Liability
+                    MyTaskPro is provided "as is" without any warranties. We shall not be liable for any indirect, incidental, special, consequential or punitive damages resulting from your use of the app.
+
+                    9. Governing Law
+                    These terms shall be governed by and construed in accordance with the laws of [Your Jurisdiction], without regard to its conflict of law provisions.
+
+                    10. Changes to Terms
+                    We may update these terms from time to time. We will notify you of any changes by posting the new Terms of Service on this page.
+
+                    If you have any questions about these Terms of Service, please contact us at support@mytaskpro.com.
+                    
+                    """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Privacy Policy",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Text(
+                    """
+                    At MyTaskPro, we value your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you use our app.
+
+                    1. Information We Collect
+
+                    a. Task Data: We collect and store the tasks you create, including titles, descriptions, due dates, and completion status.
+                    b. Google Account Information: If you choose to sync your tasks, we access your Google account information for authentication purposes.
+                    c. Usage Data: We collect anonymous data about how you use the app to improve our services.
+
+                    2. How We Use Your Information
+
+                    a. To provide and maintain the MyTaskPro service.
+                    b. To sync your tasks across devices when you enable Google Sync.
+                    c. To improve and personalize your experience with the app.
+                    d. To communicate with you about app updates or respond to your inquiries.
+
+                    3. Data Storage and Security
+
+                    a. Local Storage: By default, your tasks are stored locally on your device.
+                    b. Cloud Storage: If you enable Google Sync, your tasks are also stored securely in your Google account.
+                    c. We implement industry-standard security measures to protect your data.
+
+                
+                    4. Your Choices
+
+                    a. You can use MyTaskPro without creating an account or syncing to Google.
+                    b. You can enable or disable Google Sync at any time in the app settings.
+                    c. You can request deletion of your data by contacting us.
+
+                    6. Changes to This Policy
+
+                    We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.
+
+                    7. Contact Us
+
+                    If you have any questions about this Privacy Policy, please contact us at privacy@mytaskpro.com.
+
+                   
+                    """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
             }
         }
     }
@@ -450,6 +638,9 @@ fun FeedbackSection(viewModel: SettingsViewModel) {
 
 @Composable
 fun AboutSection(viewModel: SettingsViewModel) {
+    var showTermsOfService by remember { mutableStateOf(false) }
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
+
     SettingsSection(title = "About") {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -458,20 +649,29 @@ fun AboutSection(viewModel: SettingsViewModel) {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             TextButton(
-                onClick = { /* Open privacy policy */ },
+                onClick = { showPrivacyPolicy = true },
                 modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
             ) {
                 Text("Privacy Policy")
             }
             TextButton(
-                onClick = { /* Open terms of service */ },
+                onClick = { showTermsOfService = true },
                 modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
             ) {
                 Text("Terms of Service")
             }
         }
     }
+
+    if (showTermsOfService) {
+        TermsOfServiceDialog(onDismiss = { showTermsOfService = false })
+    }
+
+    if (showPrivacyPolicy) {
+        PrivacyPolicyDialog(onDismiss = { showPrivacyPolicy = false })
+    }
 }
+
 
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
