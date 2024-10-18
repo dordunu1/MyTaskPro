@@ -75,9 +75,17 @@ fun TasksScreen(
 
     val lazyListState = rememberLazyListState()
     val hiddenTasks = remember { mutableStateListOf<Int>() }
+    var isLoading by remember { mutableStateOf(true) }
 
-    fun resetHiddenTasks() {
+    LaunchedEffect(tasks, filterOption) {
+        isLoading = true
         hiddenTasks.clear()
+        tasks.forEach { task ->
+            if (task.isCompleted && filterOption !is FilterOption.Completed) {
+                hiddenTasks.add(task.id)
+            }
+        }
+        isLoading = false
     }
 
     LaunchedEffect(showConfetti) {
@@ -125,43 +133,41 @@ fun TasksScreen(
                     filterOption = filterOption,
                     sortOption = sortOption,
                     completedTaskCount = completedTaskCount,
-                    onFilterChanged = {
-                        viewModel.updateFilterOption(it)
-                        resetHiddenTasks()
-                    },
-                    onSortChanged = {
-                        viewModel.updateSortOption(it)
-                        resetHiddenTasks()
-                    },
+                    onFilterChanged = { viewModel.updateFilterOption(it) },
+                    onSortChanged = { viewModel.updateSortOption(it) },
                     customCategories = customCategories
                 )
 
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    items(
-                        items = tasks.filter { task ->
-                            when (filterOption) {
-                                is FilterOption.Completed -> true // Show all completed tasks
-                                else -> task.id !in hiddenTasks
-                            }
-                        },
-                        key = { task -> task.id }
-                    ) { task ->
-                        TaskItem(
-                            task = task,
-                            viewModel = viewModel,
-                            onEditTask = { editingTask = it },
-                            onTaskClick = onTaskClick,
-                            onHideTask = { taskId ->
-                                if (filterOption !is FilterOption.Completed) {
-                                    hiddenTasks.add(taskId)
-                                }
-                            },
-                            isCompletedFilter = filterOption is FilterOption.Completed
-                        )
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        items(
+                            items = tasks.filter { it.id !in hiddenTasks },
+                            key = { task -> task.id }
+                        ) { task ->
+                            TaskItem(
+                                task = task,
+                                viewModel = viewModel,
+                                onEditTask = { editingTask = it },
+                                onTaskClick = onTaskClick,
+                                onHideTask = { taskId ->
+                                    if (filterOption !is FilterOption.Completed) {
+                                        hiddenTasks.add(taskId)
+                                    }
+                                },
+                                isCompletedFilter = filterOption is FilterOption.Completed
+                            )
+                        }
                     }
                 }
             }
