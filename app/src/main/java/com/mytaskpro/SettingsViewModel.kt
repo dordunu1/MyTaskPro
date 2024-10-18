@@ -15,11 +15,10 @@ import java.util.Locale
 import javax.inject.Inject
 import android.content.Intent
 import android.net.Uri
-import dagger.hilt.android.lifecycle.HiltViewModel
+
 
 
 class SettingsViewModel @Inject constructor() : ViewModel() {
-
 
     // General Settings
     private val _isDarkMode = MutableStateFlow(false)
@@ -31,8 +30,7 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _currentTheme = MutableStateFlow("Default")
     val currentTheme = _currentTheme.asStateFlow()
 
-    private val _availableThemes =
-        MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
+    private val _availableThemes = MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
     val availableThemes = _availableThemes.asStateFlow()
 
     private val _currentLanguage = MutableStateFlow(Locale.getDefault().language)
@@ -67,7 +65,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _lastSyncTime = MutableStateFlow<String?>(null)
     val lastSyncTime: StateFlow<String?> = _lastSyncTime.asStateFlow()
 
-
     // Premium Features
     private val _isPremium = MutableStateFlow(false)
     val isPremium = _isPremium.asStateFlow()
@@ -91,24 +88,28 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     fun toggleDarkMode() {
         viewModelScope.launch(Dispatchers.Main) {
             _isDarkMode.value = !_isDarkMode.value
+            updateTheme()
         }
     }
 
     fun toggle24HourFormat() {
         viewModelScope.launch(Dispatchers.Main) {
             _is24HourFormat.value = !_is24HourFormat.value
+            updateTimeFormat()
         }
     }
 
     fun setTheme(theme: String) {
         viewModelScope.launch(Dispatchers.Main) {
             _currentTheme.value = theme
+            updateTheme()
         }
     }
 
     fun setLanguage(language: String) {
         viewModelScope.launch(Dispatchers.Main) {
             _currentLanguage.value = language
+            updateLocale()
         }
     }
 
@@ -154,7 +155,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-
     enum class SyncStatus { Idle, Syncing, Success, Error }
 
     fun setUserEmail(email: String?) {
@@ -165,6 +165,12 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
 
     fun updateSignedInEmail(email: String?) {
         setUserEmail(email)
+    }
+
+    fun setDarkMode(isDark: Boolean) {
+        viewModelScope.launch(Dispatchers.Main) {
+            _isDarkMode.value = isDark
+        }
     }
 
     fun startSync() {
@@ -207,7 +213,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-
     fun getPlayStoreIntent(): Intent {
         return Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse("market://details?id=com.mytaskpro")
@@ -216,10 +221,18 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     }
 
     fun getPlayStoreWebIntent(): Intent {
-        return Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro")
-        )
+        return Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro"))
+    }
+
+    private fun updateTheme() {
+        // This function will be implemented in ThemeUtils
+    }
+
+    private fun updateTimeFormat() {
+        // This function will be implemented to update time format throughout the app
+    }
+
+    private fun updateLocale() {
+        // This function will be implemented to update app locale
     }
 }
-

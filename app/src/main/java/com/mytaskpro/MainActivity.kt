@@ -30,6 +30,7 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 import com.mytaskpro.SettingsViewModel
 import com.mytaskpro.ui.AppNavigation
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
+import com.mytaskpro.utils.ThemeUtils
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -109,8 +110,12 @@ class MainActivity : ComponentActivity() {
     ) {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
         val isUserSignedIn by taskViewModel.isUserSignedIn.collectAsState()
+        val isDarkTheme = ThemeUtils.isDarkTheme(settingsViewModel)
 
-        MyTaskProTheme(appTheme = currentTheme) {
+        MyTaskProTheme(
+            darkTheme = isDarkTheme,
+            appTheme = currentTheme
+        ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background

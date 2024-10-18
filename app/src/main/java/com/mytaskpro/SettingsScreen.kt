@@ -88,12 +88,26 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
     var showThemeDialog by remember { mutableStateOf(false) }
 
     SettingsSection(title = "General") {
-        SwitchSetting("Dark Mode", viewModel.isDarkMode.collectAsState().value) { viewModel.toggleDarkMode() }
-        SwitchSetting("24-Hour Format", viewModel.is24HourFormat.collectAsState().value) { viewModel.toggle24HourFormat() }
+        SwitchSetting(
+            "Dark Mode",
+            viewModel.isDarkMode.collectAsState().value
+        ) { isChecked ->
+            viewModel.toggleDarkMode()
+            // Update the theme in ThemeViewModel
+            themeViewModel.setTheme(if (isChecked) AppTheme.Dark else AppTheme.Default)
+        }
+        SwitchSetting(
+            "24-Hour Format",
+            viewModel.is24HourFormat.collectAsState().value
+        ) { viewModel.toggle24HourFormat() }
         ClickableSetting("Theme") {
             showThemeDialog = true
         }
-        DropdownSetting("Language", viewModel.currentLanguage.collectAsState().value, viewModel.availableLanguages.collectAsState().value) { viewModel.setLanguage(it) }
+        DropdownSetting(
+            "Language",
+            viewModel.currentLanguage.collectAsState().value,
+            viewModel.availableLanguages.collectAsState().value
+        ) { viewModel.setLanguage(it) }
     }
 
     if (showThemeDialog) {
@@ -101,6 +115,8 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
             currentTheme = themeViewModel.currentTheme.collectAsState().value,
             onThemeSelected = { theme ->
                 themeViewModel.setTheme(theme)
+                // Update isDarkMode in SettingsViewModel based on the selected theme
+                viewModel.setDarkMode(theme == AppTheme.Dark)
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
