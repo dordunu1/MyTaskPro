@@ -1,6 +1,9 @@
 package com.mytaskpro.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.google.firebase.auth.FirebaseAuth
 import com.mytaskpro.data.AppDatabase
@@ -21,6 +24,9 @@ import com.mytaskpro.domain.BadgeEvaluator
 import com.mytaskpro.domain.BadgeManager
 import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.repository.BadgeRepository
+import com.mytaskpro.utils.StatusBarNotificationManager
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -44,6 +50,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideStatusBarNotificationManager(
+        @ApplicationContext context: Context,
+        taskDao: TaskDao  // Add this parameter
+    ): StatusBarNotificationManager {
+        return StatusBarNotificationManager(context, taskDao)
+    }
+
+    @Provides
+    @Singleton
     fun provideBadgeDao(database: AppDatabase): BadgeDao {
         return database.badgeDao()
     }
@@ -63,7 +78,6 @@ object AppModule {
         return BadgeManager(badgeRepository, taskCompletionBadgeEvaluator)
     }
 
-
     @Provides
     @Singleton
     fun provideUserActionRepository(
@@ -72,7 +86,6 @@ object AppModule {
     ): UserActionRepository {
         return UserActionRepository(firestore, auth)
     }
-
 
     @Provides
     fun provideTaskDao(database: AppDatabase): TaskDao {
@@ -91,5 +104,11 @@ object AppModule {
         @ApplicationContext context: Context
     ): AIRecommendationRepository {
         return AIRecommendationRepositoryImpl(firestore, context)
+    }
+
+    @Singleton
+    @Provides
+    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        return context.dataStore
     }
 }

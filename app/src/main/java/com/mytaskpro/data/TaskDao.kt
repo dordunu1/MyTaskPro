@@ -2,6 +2,7 @@ package com.mytaskpro.data
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 import java.util.Date
 
 @Dao
@@ -85,16 +86,16 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE category = :category")
     fun getTasksByCategory(category: CategoryType): Flow<List<Task>>
 
-
     @Transaction
     suspend fun replaceAllTasks(tasks: List<Task>) {
         deleteAllTasks()
         insertTasks(tasks)
     }
 
+    @Query("SELECT * FROM tasks WHERE date(dueDate / 1000, 'unixepoch') = date(:date / 1000, 'unixepoch') AND isCompleted = 0")
+    suspend fun getTasksForDate(date: Long): List<Task>
+
 
     @Query("SELECT * FROM tasks WHERE lastModified > :lastSyncTime")
     suspend fun getTasksModifiedSince(lastSyncTime: Long): List<Task>
-
-
 }

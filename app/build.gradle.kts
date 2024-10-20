@@ -88,8 +88,13 @@ dependencies {
     implementation("androidx.compose.material3:material3-window-size-class")
     implementation("androidx.compose.material3:material3")
 
+    // ViewModel
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
 
 
+     // DataStore
+    implementation ("androidx.datastore:datastore-preferences:1.0.0")
 
 
     // Firebase

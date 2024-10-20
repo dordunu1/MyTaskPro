@@ -17,7 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -27,12 +27,17 @@ import com.google.firebase.auth.FirebaseAuth
 import com.mytaskpro.ui.theme.MyTaskProTheme
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
-import com.mytaskpro.SettingsViewModel
+import com.mytaskpro.data.CategoryType
+import com.mytaskpro.ui.AddTaskDialog
 import com.mytaskpro.ui.AppNavigation
+import com.mytaskpro.ui.CategorySelectionDialog
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
+import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.ThemeUtils
 import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -40,6 +45,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
     private val aiRecommendationViewModel: AIRecommendationViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+
+    @Inject
+    lateinit var statusBarNotificationManager: StatusBarNotificationManager
 
     companion object {
         private const val MANAGE_EXTERNAL_STORAGE_REQUEST_CODE = 1001
@@ -63,9 +71,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun updateQuickAddNotification() {
+        lifecycleScope.launch {
+            taskViewModel.getTodaysTasks().collect { todaysTasks ->
+                statusBarNotificationManager.showQuickAddNotification(
+                    taskCountForToday = todaysTasks.size,
+                    tasks = todaysTasks
+                )
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         taskViewModel.syncTasksWithFirebase()
+        updateQuickAddNotification()
     }
 
     override fun onPause() {
@@ -77,8 +97,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize TimeUtils with the current preference
-        TimeUtils.setUse24HourFormat(settingsViewModel.is24HourFormat.value)
+        lifecycleScope.launch {
+            settingsViewModel.is24HourFormat.collect { is24Hour ->
+                TimeUtils.setUse24HourFormat(is24Hour)
+            }
+        }
+
+        // Update this part to include task titles
+        lifecycleScope.launch {
+            taskViewModel.getTodaysTasks().collect { todaysTasks ->
+                val taskCount = todaysTasks.size
+                statusBarNotificationManager.showQuickAddNotification(
+                    taskCountForToday = taskCount,
+                    tasks = todaysTasks
+                )
+            }
+        }
+        updateQuickAddNotification()
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
@@ -103,6 +138,30 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        when (intent?.action) {
+            "SHOW_CATEGORY_SELECTION", "ADD_TASK_ACTION" -> {
+                taskViewModel.showCategorySelectionDialog()
+            }
+            "SNOOZE_REMINDER" -> {
+                val taskId = intent.getIntExtra("taskId", -1)
+                if (taskId != -1) {
+                    val snoozeDuration = intent.getLongExtra("snoozeDuration", 15 * 60 * 1000)
+                    taskViewModel.snoozeTask(taskId, snoozeDuration)
+                }
+            }
+            "QUICK_ADD_TASK" -> {
+                taskViewModel.showCategorySelectionDialog()
+            }
+        }
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MyTaskProApp(
@@ -114,6 +173,9 @@ class MainActivity : ComponentActivity() {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
         val isUserSignedIn by taskViewModel.isUserSignedIn.collectAsState()
         val isDarkTheme = ThemeUtils.isDarkTheme(settingsViewModel)
+        val showCategorySelection by taskViewModel.showCategorySelection.collectAsState()
+        val showAddTaskDialog by taskViewModel.showAddTaskDialog.collectAsState()
+        var selectedCategory by remember { mutableStateOf<CategoryType?>(null) }
 
         MyTaskProTheme(
             darkTheme = isDarkTheme,
@@ -140,6 +202,46 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
+
+                if (showCategorySelection) {
+                    CategorySelectionDialog(
+                        onDismiss = { taskViewModel.hideCategorySelectionDialog() },
+                        onCategorySelected = { category ->
+                            selectedCategory = category
+                            taskViewModel.hideCategorySelectionDialog()
+                            taskViewModel.showAddTaskDialog()
+                        },
+                        onNewCategoryCreated = { newCategoryName ->
+                            taskViewModel.createCustomCategory(newCategoryName)
+                        },
+                        customCategories = taskViewModel.customCategories.collectAsState().value
+                    )
+                }
+
+                if (showAddTaskDialog) {
+                    selectedCategory?.let {
+                        AddTaskDialog(
+                            category = it,
+                            onDismiss = {
+                                taskViewModel.hideAddTaskDialog()
+                                selectedCategory = null
+                            },
+                            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
+                                taskViewModel.addTask(
+                                    title = title,
+                                    description = description,
+                                    category = selectedCategory ?: CategoryType.WORK,
+                                    dueDate = dueDate,
+                                    reminderTime = reminderTime,
+                                    notifyOnDueDate = notifyOnDueDate,
+                                    repetitiveSettings = repetitiveSettings
+                                )
+                                taskViewModel.hideAddTaskDialog()
+                                selectedCategory = null
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -177,24 +279,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             )
-        }
-    }
-
-    private fun handleIntent(intent: Intent) {
-        when (intent.action) {
-            "COMPLETE_TASK" -> {
-                val taskId = intent.getIntExtra("taskId", -1)
-                if (taskId != -1) {
-                    taskViewModel.updateTaskCompletion(taskId, true)
-                }
-            }
-            "SNOOZE_REMINDER" -> {
-                val taskId = intent.getIntExtra("taskId", -1)
-                if (taskId != -1) {
-                    val snoozeDuration = intent.getLongExtra("snoozeDuration", 15 * 60 * 1000)
-                    taskViewModel.snoozeTask(taskId, snoozeDuration)
-                }
-            }
         }
     }
 

@@ -64,10 +64,11 @@ fun TasksScreen(
     val sortOption by viewModel.sortOption.collectAsState()
     val completedTaskCount by viewModel.completedTaskCount.collectAsState(initial = 0)
     val showConfetti by viewModel.showConfetti.collectAsState()
+    val showAddTaskDialog by viewModel.showAddTaskDialog.collectAsState()
+
 
     val snackbarHostState = remember { SnackbarHostState() }
     var editingTask by remember { mutableStateOf<Task?>(null) }
-    var showAddTaskDialog by remember { mutableStateOf(false) }
     var showCategorySelection by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<CategoryType?>(null) }
 
@@ -180,13 +181,12 @@ fun TasksScreen(
     }
 
     if (showCategorySelection) {
-        val customCategories by viewModel.customCategories.collectAsState()
         CategorySelectionDialog(
             onDismiss = { showCategorySelection = false },
             onCategorySelected = { category ->
                 showCategorySelection = false
-                showAddTaskDialog = true
                 selectedCategory = category
+                viewModel.showAddTaskDialog()
             },
             onNewCategoryCreated = { newCategoryName ->
                 viewModel.createCustomCategory(newCategoryName)
@@ -195,28 +195,30 @@ fun TasksScreen(
         )
     }
 
-    val currentCategory = selectedCategory
-    if (showAddTaskDialog && currentCategory != null) {
-        AddTaskDialog(
-            category = currentCategory,
-            onDismiss = {
-                showAddTaskDialog = false
-                selectedCategory = null
-            },
-            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
-                viewModel.addTask(
-                    title = title,
-                    description = description,
-                    category = currentCategory,
-                    dueDate = dueDate,
-                    reminderTime = reminderTime,
-                    notifyOnDueDate = notifyOnDueDate,
-                    repetitiveSettings = repetitiveSettings
-                )
-                showAddTaskDialog = false
-                selectedCategory = null
-            }
-        )
+    if (showAddTaskDialog) {
+        val currentCategory = selectedCategory
+        if (currentCategory != null) {
+            AddTaskDialog(
+                category = currentCategory,
+                onDismiss = {
+                    viewModel.hideAddTaskDialog()
+                    selectedCategory = null
+                },
+                onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
+                    viewModel.addTask(
+                        title = title,
+                        description = description,
+                        category = currentCategory,
+                        dueDate = dueDate,
+                        reminderTime = reminderTime,
+                        notifyOnDueDate = notifyOnDueDate,
+                        repetitiveSettings = repetitiveSettings
+                    )
+                    viewModel.hideAddTaskDialog()
+                    selectedCategory = null
+                }
+            )
+        }
     }
 
     LaunchedEffect(editingTask) {
@@ -225,6 +227,7 @@ fun TasksScreen(
             editingTask = null
         }
     }
+
     LaunchedEffect(taskAdditionStatus) {
         when (taskAdditionStatus) {
             TaskAdditionStatus.Success -> {

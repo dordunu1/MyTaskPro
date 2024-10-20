@@ -44,7 +44,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseUser
-import com.mytaskpro.SettingsViewModel
 import kotlinx.coroutines.TimeoutCancellationException
 import com.google.firebase.firestore.DocumentChange
 import com.mytaskpro.domain.BadgeManager
@@ -53,7 +52,11 @@ import com.mytaskpro.ui.TimeFrame
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import kotlin.math.roundToInt
-
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 
 @HiltViewModel
@@ -65,14 +68,26 @@ class TaskViewModel @Inject constructor(
     private val firebaseTaskRepository: FirebaseTaskRepository,
     private val workManager: WorkManager,
     private val firebaseAuth: FirebaseAuth,
-    private val settingsViewModel: SettingsViewModel, // Inject SettingsViewModel
+    private val dataStore: DataStore<Preferences>, // Make sure this type is correct
     private val firestore: FirebaseFirestore,
     private val badgeRepository: BadgeRepository,
     private val badgeManager: BadgeManager
 ) : AndroidViewModel(application as Application) {
 
+    val is24HourFormat = dataStore.data
+        .map { preferences ->
+            preferences[booleanPreferencesKey("is_24_hour_format")] ?: false
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            false
+        )
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
+    private val _showAddTaskDialog = MutableStateFlow(false)
+    val showAddTaskDialog: StateFlow<Boolean> = _showAddTaskDialog.asStateFlow()
 
     private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
@@ -127,8 +142,75 @@ class TaskViewModel @Inject constructor(
     private val _showConfetti = MutableStateFlow(false)
     val showConfetti: StateFlow<Boolean> = _showConfetti.asStateFlow()
 
+    private val _showCategorySelection = MutableStateFlow(false)
+    val showCategorySelection: StateFlow<Boolean> = _showCategorySelection.asStateFlow()
+
+    private val _notificationUpdateTrigger = MutableStateFlow(0)
+    val notificationUpdateTrigger: StateFlow<Int> = _notificationUpdateTrigger.asStateFlow()
+
+    private fun triggerNotificationUpdate() {
+        _notificationUpdateTrigger.value += 1
+    }
+
+
+    fun getTodaysTasks(): Flow<List<Task>> {
+        return tasks.map { allTasks ->
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+            allTasks.filter {
+                it.dueDate.time >= today.time &&
+                        it.dueDate.time < today.time + 24*60*60*1000 &&
+                        !it.isCompleted
+            }
+        }
+    }
+
+
+    fun getTaskCountForToday(): Flow<Int> {
+        return tasks.map { taskList ->
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+
+            taskList.count { task ->
+                val taskDate = Calendar.getInstance().apply { time = task.dueDate }.apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.time
+
+                taskDate == today && !task.isCompleted
+            }
+        }
+    }
+
+
+    fun showCategorySelectionDialog() {
+        _showCategorySelection.value = true
+    }
+
+    fun hideCategorySelectionDialog() {
+        _showCategorySelection.value = false
+    }
+
     fun showConfetti() {
         _showConfetti.value = true
+    }
+
+    fun showAddTaskDialog() {
+        _showAddTaskDialog.value = true
+    }
+
+    fun hideAddTaskDialog() {
+        _showAddTaskDialog.value = false
     }
 
     private fun updateCompletedTaskCount() {
@@ -352,11 +434,11 @@ class TaskViewModel @Inject constructor(
     fun syncTasksWithFirebase() {
         viewModelScope.launch {
             Log.d("TaskViewModel", "Starting sync process")
-            settingsViewModel.startSync()
+            _syncStatus.value = SyncStatus.Syncing
             try {
                 val userId = firebaseAuth.currentUser?.uid ?: run {
                     Log.e("TaskViewModel", "User not authenticated")
-                    settingsViewModel.endSync(false)
+                    _syncStatus.value = SyncStatus.Error
                     return@launch
                 }
 
@@ -386,17 +468,19 @@ class TaskViewModel @Inject constructor(
                     _tasks.value = mergedTasks
 
                     Log.d("TaskViewModel", "Sync completed successfully")
-                    settingsViewModel.endSync(true)
+                    _syncStatus.value = SyncStatus.Success
                 }
             } catch (e: Exception) {
                 when (e) {
                     is TimeoutCancellationException -> Log.e("TaskViewModel", "Sync timed out", e)
                     else -> Log.e("TaskViewModel", "Sync failed", e)
                 }
-                settingsViewModel.endSync(false)
+                _syncStatus.value = SyncStatus.Error
             }
         }
     }
+
+
 
     fun saveTasksLocally() {
         viewModelScope.launch {
@@ -485,6 +569,7 @@ class TaskViewModel @Inject constructor(
                 _taskAdditionStatus.value = TaskAdditionStatus.Error
             }
             evaluateBadges()
+            triggerNotificationUpdate()
         }
     }
 
@@ -531,6 +616,7 @@ class TaskViewModel @Inject constructor(
 
             // Update completion percentage
             updateCompletionPercentage()
+            triggerNotificationUpdate()
         }
     }
 
@@ -853,6 +939,7 @@ class TaskViewModel @Inject constructor(
                 }
                 updateWidget()
                 updateCompletionPercentage()
+                triggerNotificationUpdate()
 
                 // Evaluate badges immediately after updating task completion
                 evaluateBadges()

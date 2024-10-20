@@ -15,10 +15,20 @@ import java.util.Locale
 import javax.inject.Inject
 import android.content.Intent
 import android.net.Uri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.TimeUtils
+import dagger.hilt.android.lifecycle.HiltViewModel
 
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val dataStore: DataStore<Preferences>,
+    private val statusBarNotificationManager: StatusBarNotificationManager
 
-class SettingsViewModel @Inject constructor() : ViewModel() {
+) : ViewModel() {
 
     // General Settings
     private val _isDarkMode = MutableStateFlow(false)
@@ -30,14 +40,11 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _currentTheme = MutableStateFlow("Default")
     val currentTheme = _currentTheme.asStateFlow()
 
+    private val _isStatusBarQuickAddEnabled = MutableStateFlow(false)
+    val isStatusBarQuickAddEnabled: StateFlow<Boolean> = _isStatusBarQuickAddEnabled.asStateFlow()
+
     private val _availableThemes = MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
     val availableThemes = _availableThemes.asStateFlow()
-
-    private val _currentLanguage = MutableStateFlow(Locale.getDefault().language)
-    val currentLanguage = _currentLanguage.asStateFlow()
-
-    private val _availableLanguages = MutableStateFlow(listOf("en", "es", "fr", "de", "it"))
-    val availableLanguages = _availableLanguages.asStateFlow()
 
     // Notification Settings
     private val _taskReminders = MutableStateFlow(true)
@@ -84,11 +91,25 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _forceRefresh = MutableStateFlow(0)
     val forceRefresh: StateFlow<Int> = _forceRefresh.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            dataStore.data.collect { preferences ->
+                _isDarkMode.value = preferences[PreferencesKeys.DARK_MODE] ?: false
+                _is24HourFormat.value = preferences[PreferencesKeys.HOUR_FORMAT] ?: false
+                _isStatusBarQuickAddEnabled.value = preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] ?: false
+                updateStatusBarNotification()
+            }
+        }
+    }
+
     // Functions to update settings
     fun toggleDarkMode() {
         viewModelScope.launch(Dispatchers.Main) {
             _isDarkMode.value = !_isDarkMode.value
             updateTheme()
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.DARK_MODE] = _isDarkMode.value
+            }
         }
     }
 
@@ -96,6 +117,16 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch(Dispatchers.Main) {
             _is24HourFormat.value = !_is24HourFormat.value
             updateTimeFormat()
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.HOUR_FORMAT] = _is24HourFormat.value
+            }
+        }
+    }
+
+    fun toggleStatusBarQuickAdd() {
+        viewModelScope.launch(Dispatchers.Main) {
+            _isStatusBarQuickAddEnabled.value = !_isStatusBarQuickAddEnabled.value
+            updateStatusBarNotification()
         }
     }
 
@@ -103,13 +134,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch(Dispatchers.Main) {
             _currentTheme.value = theme
             updateTheme()
-        }
-    }
-
-    fun setLanguage(language: String) {
-        viewModelScope.launch(Dispatchers.Main) {
-            _currentLanguage.value = language
-            updateLocale()
         }
     }
 
@@ -224,6 +248,21 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         return Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro"))
     }
 
+    private fun updateStatusBarNotification() {
+        viewModelScope.launch {
+            try {
+                statusBarNotificationManager.updateQuickAddNotification(_isStatusBarQuickAddEnabled.value)
+                dataStore.edit { preferences ->
+                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] = _isStatusBarQuickAddEnabled.value
+                }
+                Log.d("SettingsViewModel", "Status bar quick add ${if (_isStatusBarQuickAddEnabled.value) "enabled" else "disabled"}")
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Error updating status bar notification", e)
+                // Handle the error (e.g., show a toast or update UI)
+            }
+        }
+    }
+
     private fun updateTheme() {
         // This function will be implemented in ThemeUtils
     }
@@ -236,5 +275,11 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
 
     private fun updateLocale() {
         // This function will be implemented to update app locale
+    }
+
+    private object PreferencesKeys {
+        val DARK_MODE = booleanPreferencesKey("dark_mode")
+        val HOUR_FORMAT = booleanPreferencesKey("hour_format")
+        val STATUS_BAR_QUICK_ADD = booleanPreferencesKey("status_bar_quick_add")
     }
 }

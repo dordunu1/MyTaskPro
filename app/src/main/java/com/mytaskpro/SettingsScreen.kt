@@ -103,11 +103,10 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
         ClickableSetting("Theme") {
             showThemeDialog = true
         }
-        DropdownSetting(
-            "Language",
-            viewModel.currentLanguage.collectAsState().value,
-            viewModel.availableLanguages.collectAsState().value
-        ) { viewModel.setLanguage(it) }
+        SwitchSetting(
+            "Status Bar Quick Add",
+            viewModel.isStatusBarQuickAddEnabled.collectAsState().value
+        ) { viewModel.toggleStatusBarQuickAdd() }
     }
 
     if (showThemeDialog) {
