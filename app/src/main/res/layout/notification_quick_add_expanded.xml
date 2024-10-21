@@ -18,12 +18,14 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.Compat.Notification.Title"/>
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
 
         <ImageView
             android:id="@+id/add_button"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:src="@drawable/ic_add"
             android:contentDescription="Add Task" />
     </LinearLayout>
@@ -33,6 +35,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="@style/TextAppearance.Compat.Notification.Line2"
+        android:textSize="20sp"
         android:layout_marginBottom="8dp"/>
 
     <LinearLayout

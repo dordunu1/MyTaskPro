@@ -97,6 +97,9 @@ class TaskViewModel @Inject constructor(
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     private val _upcomingTasks = MutableStateFlow<Map<LocalDate, List<UpcomingTask>>>(emptyMap())
     val upcomingTasks: StateFlow<Map<LocalDate, List<UpcomingTask>>> = _upcomingTasks.asStateFlow()
 
@@ -165,6 +168,8 @@ class TaskViewModel @Inject constructor(
     private fun triggerNotificationUpdate() {
         _notificationUpdateTrigger.value += 1
     }
+
+
 
 
     fun getTodaysTasks(): Flow<List<Task>> {
@@ -588,6 +593,7 @@ class TaskViewModel @Inject constructor(
             fetchUpcomingTasks()
         }
     }
+
 
     // Override existing updateTask function
     fun updateTask(
@@ -1545,4 +1551,6 @@ class TaskViewModel @Inject constructor(
         val showConfettiOnCompletion: Boolean = true  // Add this line
     )
 }
+
+
 
