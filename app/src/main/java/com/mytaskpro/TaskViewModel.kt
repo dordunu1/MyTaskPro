@@ -58,6 +58,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalTime
+import com.mytaskpro.data.NoteTypeAdapter
+
 import com.mytaskpro.data.UpcomingTask
 
 
@@ -154,6 +156,7 @@ class TaskViewModel @Inject constructor(
 
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(CategoryType::class.java, CategoryTypeAdapter())
+        .registerTypeAdapter(Note::class.java, NoteTypeAdapter())
         .create()
 
     private val _showConfetti = MutableStateFlow(false)
@@ -357,12 +360,18 @@ class TaskViewModel @Inject constructor(
         )
         val notesJson = sharedPrefs.getString("notes", null)
         if (notesJson != null) {
-            val type = object : TypeToken<List<Note>>() {}.type
-            val loadedNotes = Gson().fromJson<List<Note>>(notesJson, type)
-            _notes.value = loadedNotes
-            Log.d("TaskViewModel", "Notes loaded: $loadedNotes")
+            try {
+                val type = object : TypeToken<List<Note>>() {}.type
+                val loadedNotes = gson.fromJson<List<Note>>(notesJson, type)
+                _notes.value = loadedNotes
+                Log.d("TaskViewModel", "Notes loaded successfully: ${loadedNotes.size} notes")
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error loading notes", e)
+                _notes.value = emptyList() // Fallback to empty list if there's an error
+            }
         } else {
             Log.d("TaskViewModel", "No saved notes found")
+            _notes.value = emptyList()
         }
     }
 

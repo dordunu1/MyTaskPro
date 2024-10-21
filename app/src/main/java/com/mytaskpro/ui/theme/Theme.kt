@@ -48,6 +48,32 @@ private val ClassicLightColors = lightColorScheme(
     onPrimary = Color.White,
 )
 
+private val BeThankfulColors = lightColorScheme(
+    primary = Color(0xFFD06A4E),
+    secondary = Color(0xFFFFFFFE),
+    tertiary = Color(0xFFE4D9C9),
+    background = Color(0xFFB4A8A6),
+    onBackground = Color(0xFF333333),  // Assuming a dark color for text on the background
+    onPrimary = Color(0xFFFFFFFE),     // Using the white color for text on primary
+    onSecondary = Color(0xFF333333),   // Assuming a dark color for text on secondary
+    onTertiary = Color(0xFF333333),    // Assuming a dark color for text on tertiary
+)
+
+private val EInkThemeColors = lightColorScheme(
+    primary = Color(0xFF000000),         // Pure black for primary elements
+    secondary = Color(0xFF333333),       // Dark gray for secondary elements
+    tertiary = Color(0xFF666666),        // Medium gray for tertiary elements
+    background = Color(0xFFFFFFFF),      // Pure white background
+    surface = Color(0xFFF5F5F5),         // Very light gray for surface elements
+    onPrimary = Color(0xFFFFFFFF),       // White text on primary (black) background
+    onSecondary = Color(0xFFFFFFFF),     // White text on secondary (dark gray) background
+    onTertiary = Color(0xFFFFFFFF),      // White text on tertiary (medium gray) background
+    onBackground = Color(0xFF000000),    // Black text on white background
+    onSurface = Color(0xFF000000),       // Black text on light gray surface
+    surfaceVariant = Color(0xFFE0E0E0),  // Light gray for card backgrounds
+    onSurfaceVariant = Color(0xFF000000) // Black text on light gray card backgrounds
+)
+
 private val WarmSepiaColors = lightColorScheme(
     primary = Color(0xFFD9534F),
     background = Color(0xFFF4ECD8),
@@ -112,7 +138,7 @@ private val PaperDarkColorScheme = darkColorScheme(
 )
 
 enum class AppTheme {
-    Default, ClassicLight, WarmSepia, Dark, MiddleYellowRed, SoftBlue, Pink, MistyMoon, PaperDark
+    Default, ClassicLight,BeThankful, EInkTheme, WarmSepia, Dark, MiddleYellowRed, SoftBlue, Pink, MistyMoon, PaperDark
 }
 
 @Composable
@@ -132,6 +158,8 @@ fun MyTaskProTheme(
             else -> LightColorScheme
         }
         AppTheme.ClassicLight -> ClassicLightColors
+        AppTheme.BeThankful -> BeThankfulColors
+        AppTheme.EInkTheme -> EInkThemeColors
         AppTheme.WarmSepia -> WarmSepiaColors
         AppTheme.Dark -> DarkThemeColors
         AppTheme.MiddleYellowRed -> MiddleYellowRedColors

@@ -202,6 +202,8 @@ fun getThemeColor(theme: AppTheme, isDarkTheme: Boolean = isSystemInDarkTheme())
     return when (theme) {
         AppTheme.Default -> if (isDarkTheme) VibrantBlue else VibrantBlue // Use the same color for both light and dark themes
         AppTheme.ClassicLight -> Color(0xFF5C9EAD)
+        AppTheme.BeThankful -> Color(0xFFD06A4E)
+        AppTheme.EInkTheme -> Color(0xFFF5F5F5)
         AppTheme.WarmSepia -> Color(0xFFD9534F)
         AppTheme.Dark -> Color(0xFF0D0E0E)
         AppTheme.MiddleYellowRed -> Color(0xFFF0AF84)
