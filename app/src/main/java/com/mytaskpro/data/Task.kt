@@ -23,7 +23,6 @@ data class Task(
     val dueDate: Date = Date(),
     val reminderTime: Date? = null,
 
-    // Added PropertyName annotation to ensure correct Firestore field mapping
     @get:PropertyName("completed") @set:PropertyName("completed")
     var isCompleted: Boolean = false,
 
@@ -32,7 +31,6 @@ data class Task(
     val showSnoozeOptions: Boolean = false,
     val snoozeCount: Int = 0,
 
-    // Added PropertyName annotation to ensure correct Firestore field mapping
     @get:PropertyName("snoozed") @set:PropertyName("snoozed")
     var isSnoozed: Boolean = false,
 
@@ -41,11 +39,9 @@ data class Task(
     val creationDate: Date = Date(),
     val snoozeHistory: List<LocalDateTime> = emptyList()
 ) {
-    // Removed @set:PropertyName since this is a read-only property
     @get:PropertyName("categoryColor")
     val categoryColor: Int
         get() = category.color
-
 
     fun addSnooze(dateTime: LocalDateTime): Task {
         val updatedSnoozeHistory = snoozeHistory.toMutableList()
@@ -55,6 +51,11 @@ data class Task(
             snoozeHistory = updatedSnoozeHistory,
             isSnoozed = true
         )
+    }
+
+    fun isOverdue(): Boolean {
+        val now = Date()
+        return !isCompleted && dueDate.before(now)
     }
 }
 

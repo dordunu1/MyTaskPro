@@ -36,6 +36,13 @@ class StatusBarNotificationManager @Inject constructor(
         createNotificationChannel()
     }
 
+    private fun isInDarkMode(context: Context): Boolean {
+        return when (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
+            Configuration.UI_MODE_NIGHT_YES -> true
+            else -> false
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -48,13 +55,6 @@ class StatusBarNotificationManager @Inject constructor(
             notificationManager.createNotificationChannel(channel)
         }
     }
-    private fun isInDarkMode(context: Context): Boolean {
-        return when (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
-            Configuration.UI_MODE_NIGHT_YES -> true
-            else -> false
-        }
-    }
-
     fun showQuickAddNotification(taskCountForToday: Int, tasks: List<Task>) {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = "SHOW_CATEGORY_SELECTION"
@@ -71,6 +71,7 @@ class StatusBarNotificationManager @Inject constructor(
         val contentText = "TODAY"
 
         val dateFormatter = SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
+        val isDarkMode = isInDarkMode(context)
 
         val collapsedView = RemoteViews(context.packageName, R.layout.notification_quick_add_collapsed).apply {
             setTextViewText(R.id.title, contentTitle)
@@ -91,6 +92,18 @@ class StatusBarNotificationManager @Inject constructor(
 
                 val formattedDate = dateFormatter.format(task.dueDate)
                 taskView.setTextViewText(R.id.task_due_date, "Due: $formattedDate")
+
+                // Set text color to red for overdue tasks
+                if (task.isOverdue()) {
+                    taskView.setTextColor(R.id.task_title, Color.RED)
+                    taskView.setTextColor(R.id.task_due_date, Color.RED)
+                } else {
+                    // Set default text color based on dark/light mode
+                    val defaultTextColor = if (isDarkMode) Color.WHITE else Color.BLACK
+                    taskView.setTextColor(R.id.task_title, defaultTextColor)
+                    taskView.setTextColor(R.id.task_due_date, defaultTextColor)
+                }
+
                 addView(R.id.task_list, taskView)
             }
         }

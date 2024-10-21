@@ -306,7 +306,7 @@ fun TaskItem(
                         Text(
                             text = task.title,
                             style = MaterialTheme.typography.titleMedium,
-                            color = getColorForDueDate(task.dueDate),
+                            color = if (task.isOverdue()) Color.Red else getColorForDueDate(task.dueDate),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
@@ -321,6 +321,7 @@ fun TaskItem(
                         Text(
                             text = "Due: ${formatDate(task.dueDate)}",
                             style = MaterialTheme.typography.bodySmall,
+                            color = if (task.isOverdue()) Color.Red else LocalContentColor.current,
                             textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
                         )
                     }
