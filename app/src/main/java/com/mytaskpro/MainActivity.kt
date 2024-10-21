@@ -12,9 +12,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +33,7 @@ import com.mytaskpro.data.CategoryType
 import com.mytaskpro.ui.AddTaskDialog
 import com.mytaskpro.ui.AppNavigation
 import com.mytaskpro.ui.CategorySelectionDialog
+import com.mytaskpro.ui.theme.AppTheme
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.ThemeUtils
@@ -45,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
     private val aiRecommendationViewModel: AIRecommendationViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val themeViewModel: ThemeViewModel by viewModels()
 
     @Inject
     lateinit var statusBarNotificationManager: StatusBarNotificationManager
@@ -103,7 +107,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Update this part to include task titles
         lifecycleScope.launch {
             taskViewModel.getTodaysTasks().collect { todaysTasks ->
                 val taskCount = todaysTasks.size
@@ -133,7 +136,20 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MyTaskProApp(taskViewModel = taskViewModel, aiRecommendationViewModel = aiRecommendationViewModel)
+            val currentTheme by themeViewModel.currentTheme.collectAsState()
+
+            if (currentTheme == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                MyTaskProApp(
+                    taskViewModel = taskViewModel,
+                    aiRecommendationViewModel = aiRecommendationViewModel,
+                    themeViewModel = themeViewModel,
+                    settingsViewModel = settingsViewModel
+                )
+            }
         }
 
         handleIntent(intent)
@@ -179,7 +195,7 @@ class MainActivity : ComponentActivity() {
 
         MyTaskProTheme(
             darkTheme = isDarkTheme,
-            appTheme = currentTheme
+            appTheme = currentTheme ?: AppTheme.Default
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),

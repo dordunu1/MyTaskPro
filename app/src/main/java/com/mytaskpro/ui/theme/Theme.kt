@@ -62,8 +62,8 @@ private val DarkThemeColors = darkColorScheme(
     onPrimary = Color.White,
 )
 
-private val HighContrastColors = lightColorScheme(
-    primary = Color(0xFFFFD700),
+private val MiddleYellowRedColors = lightColorScheme(
+    primary = Color(0xFFF0AF84),
     background = Color(0xFFFFFFFF),
     onBackground = Color(0xFF000000),
     onPrimary = Color.Black,
@@ -88,14 +88,17 @@ private val PinkColorScheme = lightColorScheme(
     onSurface = Color(0xFF4E342E)
 )
 
-private val PaperLightColorScheme = lightColorScheme(
-    primary = Color(0xFFDAB894),
-    onPrimary = Color(0xFF4A4A4A),
-    secondary = Color(0xFFC4C4C4),
-    background = Color(0xFFFFF8E1),
-    surface = Color(0xFFFFF8E1),
-    onBackground = Color(0xFF4A4A4A),
-    onSurface = Color(0xFF4A4A4A)
+private val MistyMoonColorScheme = lightColorScheme(
+    primary = Color(0xFF696156),
+    onPrimary = Color(0xFFEBE8E2),
+    secondary = Color(0xFFB2AB9F),
+    tertiary = Color(0xFFC3BBB0),
+    background = Color(0xFFD2C9BE),
+    surface = Color(0xFFEBE8E2),
+    onSecondary = Color(0xFF696156),
+    onTertiary = Color(0xFF696156),
+    onBackground = Color(0xFF696156),
+    onSurface = Color(0xFF696156)
 )
 
 private val PaperDarkColorScheme = darkColorScheme(
@@ -109,7 +112,7 @@ private val PaperDarkColorScheme = darkColorScheme(
 )
 
 enum class AppTheme {
-    Default, ClassicLight, WarmSepia, Dark, HighContrast, SoftBlue, Pink, PaperLight, PaperDark
+    Default, ClassicLight, WarmSepia, Dark, MiddleYellowRed, SoftBlue, Pink, MistyMoon, PaperDark
 }
 
 @Composable
@@ -131,10 +134,10 @@ fun MyTaskProTheme(
         AppTheme.ClassicLight -> ClassicLightColors
         AppTheme.WarmSepia -> WarmSepiaColors
         AppTheme.Dark -> DarkThemeColors
-        AppTheme.HighContrast -> HighContrastColors
+        AppTheme.MiddleYellowRed -> MiddleYellowRedColors
         AppTheme.SoftBlue -> SoftBlueColorScheme
         AppTheme.Pink -> PinkColorScheme
-        AppTheme.PaperLight -> PaperLightColorScheme
+        AppTheme.MistyMoon -> MistyMoonColorScheme
         AppTheme.PaperDark -> PaperDarkColorScheme
     }
 

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mytaskpro.ui.theme.AppTheme
+import com.mytaskpro.ui.theme.VibrantBlue
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
 import kotlinx.coroutines.delay
@@ -110,16 +112,18 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
     }
 
     if (showThemeDialog) {
-        ThemeSelectionDialog(
-            currentTheme = themeViewModel.currentTheme.collectAsState().value,
-            onThemeSelected = { theme ->
-                themeViewModel.setTheme(theme)
-                // Update isDarkMode in SettingsViewModel based on the selected theme
-                viewModel.setDarkMode(theme == AppTheme.Dark)
-                showThemeDialog = false
-            },
-            onDismiss = { showThemeDialog = false }
-        )
+        themeViewModel.currentTheme.collectAsState().value?.let {
+            ThemeSelectionDialog(
+                currentTheme = it,
+                onThemeSelected = { theme ->
+                    themeViewModel.setTheme(theme)
+                    // Update isDarkMode in SettingsViewModel based on the selected theme
+                    viewModel.setDarkMode(theme == AppTheme.Dark)
+                    showThemeDialog = false
+                },
+                onDismiss = { showThemeDialog = false }
+            )
+        }
     }
 }
 
@@ -194,20 +198,19 @@ fun ThemeOption(
 }
 
 @Composable
-fun getThemeColor(theme: AppTheme): Color {
+fun getThemeColor(theme: AppTheme, isDarkTheme: Boolean = isSystemInDarkTheme()): Color {
     return when (theme) {
-        AppTheme.Default -> MaterialTheme.colorScheme.primary
+        AppTheme.Default -> if (isDarkTheme) VibrantBlue else VibrantBlue // Use the same color for both light and dark themes
         AppTheme.ClassicLight -> Color(0xFF5C9EAD)
         AppTheme.WarmSepia -> Color(0xFFD9534F)
         AppTheme.Dark -> Color(0xFF0D0E0E)
-        AppTheme.HighContrast -> Color(0xFFFFD700)
+        AppTheme.MiddleYellowRed -> Color(0xFFF0AF84)
         AppTheme.SoftBlue -> Color(0xFF90CAF9)
         AppTheme.Pink -> Color(0xFFE91E63)
-        AppTheme.PaperLight -> Color(0xFFDAB894)
+        AppTheme.MistyMoon -> Color(0xFF696156)
         AppTheme.PaperDark -> Color(0xFFBDAA7E)
     }
 }
-
 @Composable
 fun ClickableSetting(title: String, onClick: () -> Unit) {
     Row(

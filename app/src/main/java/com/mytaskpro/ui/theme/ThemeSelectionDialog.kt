@@ -14,11 +14,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mytaskpro.ui.theme.AppTheme
+import com.mytaskpro.viewmodel.ThemeViewModel
 
 @Composable
 fun ThemeSelectionDialog(
     onDismiss: () -> Unit,
-    onThemeSelected: (AppTheme) -> Unit
+    onThemeSelected: (AppTheme) -> Unit,
+    themeViewModel: ThemeViewModel
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -31,7 +33,13 @@ fun ThemeSelectionDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(AppTheme.values()) { theme ->
-                    ThemeItem(theme = theme, onSelect = onThemeSelected)
+                    ThemeItem(
+                        theme = theme,
+                        onSelect = {
+                            themeViewModel.setTheme(it)
+                            onThemeSelected(it)
+                        }
+                    )
                 }
             }
         },
@@ -67,10 +75,10 @@ fun getThemeColor(theme: AppTheme): Color {
         AppTheme.ClassicLight -> Color(0xFF5C9EAD)
         AppTheme.WarmSepia -> Color(0xFFD9534F)
         AppTheme.Dark -> Color(0xFF0A0A0A)
-        AppTheme.HighContrast -> Color(0xFFFFD700)
+        AppTheme.MiddleYellowRed -> Color(0xFFF0AF84)
         AppTheme.SoftBlue -> Color(0xFF90CAF9)
         AppTheme.Pink -> Color(0xFFE91E63)
-        AppTheme.PaperLight -> Color(0xFFDAB894)
+        AppTheme.MistyMoon -> Color(0xFF696156)
         AppTheme.PaperDark -> Color(0xFFBDAA7E)
     }
 }

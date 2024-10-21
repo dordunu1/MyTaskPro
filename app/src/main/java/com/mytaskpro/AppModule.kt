@@ -25,8 +25,12 @@ import com.mytaskpro.domain.BadgeManager
 import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.repository.BadgeRepository
 import com.mytaskpro.utils.StatusBarNotificationManager
-
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+import androidx.datastore.preferences.preferencesDataStore
+import com.mytaskpro.data.PreferencesManager
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.preferencesDataStoreFile
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -36,6 +40,23 @@ object AppModule {
     @Singleton
     fun provideContext(@ApplicationContext context: Context): Context {
         return context
+    }
+
+    @Provides
+    @Singleton
+    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        return PreferenceDataStoreFactory.create(
+            corruptionHandler = ReplaceFileCorruptionHandler(
+                produceNewData = { emptyPreferences() }
+            ),
+            produceFile = { context.preferencesDataStoreFile("settings") }
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun providePreferencesManager(dataStore: DataStore<Preferences>): PreferencesManager {
+        return PreferencesManager(dataStore)
     }
 
     @Provides
@@ -52,7 +73,7 @@ object AppModule {
     @Singleton
     fun provideStatusBarNotificationManager(
         @ApplicationContext context: Context,
-        taskDao: TaskDao  // Add this parameter
+        taskDao: TaskDao
     ): StatusBarNotificationManager {
         return StatusBarNotificationManager(context, taskDao)
     }
@@ -104,11 +125,5 @@ object AppModule {
         @ApplicationContext context: Context
     ): AIRecommendationRepository {
         return AIRecommendationRepositoryImpl(firestore, context)
-    }
-
-    @Singleton
-    @Provides
-    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-        return context.dataStore
     }
 }

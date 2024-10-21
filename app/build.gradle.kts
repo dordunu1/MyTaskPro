@@ -114,6 +114,7 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.44")
     implementation ("com.google.dagger:hilt-android:2.44")
     implementation(libs.androidx.hilt.common)
+    implementation(libs.androidx.datastore.preferences.core.jvm)
     kapt("com.google.dagger:hilt-android-compiler:2.44")
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 
