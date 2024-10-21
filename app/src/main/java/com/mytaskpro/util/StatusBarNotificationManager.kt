@@ -70,24 +70,17 @@ class StatusBarNotificationManager @Inject constructor(
 
         val contentText = "TODAY"
 
-        val isDarkMode = isInDarkMode(context)
-        val textColor = if (isDarkMode) Color.WHITE else Color.BLACK
         val dateFormatter = SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
 
         val collapsedView = RemoteViews(context.packageName, R.layout.notification_quick_add_collapsed).apply {
             setTextViewText(R.id.title, contentTitle)
             setTextViewText(R.id.text, contentText)
-            setTextColor(R.id.title, textColor)
-            setTextColor(R.id.text, textColor)
             setOnClickPendingIntent(R.id.add_button, pendingIntent)
         }
-
 
         val expandedView = RemoteViews(context.packageName, R.layout.notification_quick_add_expanded).apply {
             setTextViewText(R.id.title, contentTitle)
             setTextViewText(R.id.text, contentText)
-            setTextColor(R.id.title, textColor)
-            setTextColor(R.id.text, textColor)
             setOnClickPendingIntent(R.id.add_button, pendingIntent)
 
             // Add tasks with due dates to the expanded view
@@ -97,10 +90,7 @@ class StatusBarNotificationManager @Inject constructor(
                 taskView.setTextViewText(R.id.task_title, "${index + 1}. ${task.title}")
 
                 val formattedDate = dateFormatter.format(task.dueDate)
-
                 taskView.setTextViewText(R.id.task_due_date, "Due: $formattedDate")
-                taskView.setTextColor(R.id.task_title, textColor)
-                taskView.setTextColor(R.id.task_due_date, textColor)
                 addView(R.id.task_list, taskView)
             }
         }
