@@ -57,6 +57,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalTime
+import com.mytaskpro.data.UpcomingTask
+
 
 
 @HiltViewModel
@@ -74,6 +77,14 @@ class TaskViewModel @Inject constructor(
     private val badgeManager: BadgeManager
 ) : AndroidViewModel(application as Application) {
 
+    data class UpcomingTask(
+        val id: Int,
+        val title: String,
+        val dueDate: Date,
+        val dueTime: Date,
+        val category: CategoryType
+    )
+
     val is24HourFormat = dataStore.data
         .map { preferences ->
             preferences[booleanPreferencesKey("is_24_hour_format")] ?: false
@@ -85,6 +96,9 @@ class TaskViewModel @Inject constructor(
         )
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
+    private val _upcomingTasks = MutableStateFlow<Map<LocalDate, List<UpcomingTask>>>(emptyMap())
+    val upcomingTasks: StateFlow<Map<LocalDate, List<UpcomingTask>>> = _upcomingTasks.asStateFlow()
 
     private val _showAddTaskDialog = MutableStateFlow(false)
     val showAddTaskDialog: StateFlow<Boolean> = _showAddTaskDialog.asStateFlow()
@@ -278,6 +292,7 @@ class TaskViewModel @Inject constructor(
         checkUserSignInStatus()
         updateCompletionPercentage()
         observeCurrentBadge()
+        fetchUpcomingTasks() // Add this line
     }
 
     private fun observeCurrentBadge() {
@@ -570,6 +585,7 @@ class TaskViewModel @Inject constructor(
             }
             evaluateBadges()
             triggerNotificationUpdate()
+            fetchUpcomingTasks()
         }
     }
 
@@ -617,6 +633,7 @@ class TaskViewModel @Inject constructor(
             // Update completion percentage
             updateCompletionPercentage()
             triggerNotificationUpdate()
+            fetchUpcomingTasks()
         }
     }
 
@@ -644,7 +661,12 @@ class TaskViewModel @Inject constructor(
                 Log.e("TaskViewModel", "Task not found for deletion: $taskId")
             }
             updateCompletionPercentage()
+            fetchUpcomingTasks()
         }
+    }
+
+    fun refreshUpcomingTasks() {
+        fetchUpcomingTasks()
     }
 
     private fun setupFirestoreListener() {
@@ -667,6 +689,34 @@ class TaskViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    fun fetchUpcomingTasks() {
+        viewModelScope.launch {
+            val currentDate = LocalDate.now()
+            val sevenDaysLater = currentDate.plusDays(7)
+            val tasks = taskDao.getTasksForDateRange(
+                currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                sevenDaysLater.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            )
+
+            val groupedTasks = tasks
+                .filter { !it.isCompleted }
+                .map { task ->
+                    UpcomingTask(
+                        id = task.id,
+                        title = task.title,
+                        dueDate = task.dueDate,
+                        dueTime = task.dueDate,
+                        category = task.category
+                    )
+                }
+                .groupBy { task ->
+                    task.dueDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                }
+
+            _upcomingTasks.value = groupedTasks
         }
     }
 

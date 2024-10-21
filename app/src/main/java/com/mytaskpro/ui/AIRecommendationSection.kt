@@ -1,15 +1,23 @@
 package com.mytaskpro.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -22,23 +30,37 @@ import java.util.Locale
 
 @Composable
 fun AIRecommendationSection(viewModel: AIRecommendationViewModel) {
+    var isExpanded by remember { mutableStateOf(false) }
     val recommendations by viewModel.recommendations.collectAsState()
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "AI Improvement Suggestions",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        if (recommendations.isEmpty()) {
-            Text("No recommendations available yet.")
-        } else {
-            LazyColumn(
-                modifier = Modifier.heightIn(max = 200.dp)
-            ) {
-                items(recommendations) { recommendation ->
-                    RecommendationItem(recommendation)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "AI Improvement Suggestions",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isExpanded) "Collapse" else "Expand"
+            )
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            if (recommendations.isEmpty()) {
+                Text("No recommendations available yet.")
+            } else {
+                Column {
+                    recommendations.forEach { recommendation ->
+                        RecommendationItem(recommendation)
+                    }
                 }
             }
         }

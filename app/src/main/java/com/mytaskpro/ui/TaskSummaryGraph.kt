@@ -47,9 +47,7 @@ import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
 import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.compose.component.textComponent
-import kotlinx.coroutines.launch
-
-
+import com.mytaskpro.viewmodel.TaskViewModel.UpcomingTask
 
 
 @Composable
@@ -59,55 +57,78 @@ fun TaskSummaryGraph(
     modifier: Modifier = Modifier,
     onCloseClick: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
+    val upcomingTasks by viewModel.upcomingTasks.collectAsState(initial = emptyMap())
 
-    Column(
+    LaunchedEffect(Unit) {
+        viewModel.refreshUpcomingTasks()
+    }
+
+    var selectedTimeFrame by remember { mutableStateOf(TimeFrame.WEEKLY) }
+
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Task Summary",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            IconButton(onClick = onCloseClick) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close Task Summary"
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Task Summary",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
+                IconButton(onClick = onCloseClick) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Task Summary"
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            TimeFrameSelector(
+                selectedTimeFrame = selectedTimeFrame,
+                onTimeFrameSelected = { selectedTimeFrame = it }
+            )
+        }
 
-        var selectedTimeFrame by remember { mutableStateOf(TimeFrame.WEEKLY) }
-        TimeFrameSelector(
-            selectedTimeFrame = selectedTimeFrame,
-            onTimeFrameSelected = { selectedTimeFrame = it }
-        )
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            MainGraph(viewModel = viewModel, timeFrame = selectedTimeFrame)
+        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            KeyMetricsDashboard(viewModel = viewModel)
+        }
 
-        MainGraph(viewModel = viewModel, timeFrame = selectedTimeFrame)
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            DetailedAnalytics(viewModel = viewModel)
+        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                UpcomingTasksSection(upcomingTasks = upcomingTasks)
+            }
+        }
 
-        KeyMetricsDashboard(viewModel = viewModel)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        DetailedAnalytics(viewModel = viewModel)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        AIRecommendationSection(viewModel = aiRecommendationViewModel)
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            AIRecommendationSection(viewModel = aiRecommendationViewModel)
+        }
     }
 }
 
