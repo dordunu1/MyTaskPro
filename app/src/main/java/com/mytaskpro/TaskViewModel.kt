@@ -61,6 +61,7 @@ import java.time.LocalTime
 import com.mytaskpro.data.NoteTypeAdapter
 
 import com.mytaskpro.data.UpcomingTask
+import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.services.GoogleCalendarSyncService
 
 
@@ -77,7 +78,9 @@ class TaskViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val badgeRepository: BadgeRepository,
     private val badgeManager: BadgeManager,
-    private val googleCalendarSyncService: GoogleCalendarSyncService
+    private val googleCalendarSyncService: GoogleCalendarSyncService,
+    private val badgeEvaluator: TaskCompletionBadgeEvaluator
+
 
 ) : AndroidViewModel(application as Application) {
 
@@ -100,9 +103,6 @@ class TaskViewModel @Inject constructor(
         )
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
-
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _upcomingTasks = MutableStateFlow<Map<LocalDate, List<UpcomingTask>>>(emptyMap())
     val upcomingTasks: StateFlow<Map<LocalDate, List<UpcomingTask>>> = _upcomingTasks.asStateFlow()
@@ -250,22 +250,22 @@ class TaskViewModel @Inject constructor(
         _showAddTaskDialog.value = false
     }
 
-    private fun updateCompletedTaskCount() {
-        viewModelScope.launch {
-            taskDao.getCompletedTaskCount().collect { count ->
-                _completedTaskCount.value = count
-            }
-        }
+    fun updateCompletedTaskCount(count: Int) {
+        _completedTaskCount.value = count
+        evaluateBadges()
     }
 
     private var tasksCompleted = 0
 
     private fun updateBadge() {
         viewModelScope.launch {
-            val newBadge = badgeManager.evaluateBadge(tasksCompleted)
-            if (newBadge != _currentBadge.value) {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            val currentBadge = _currentBadge.value
+            val newBadge = badgeEvaluator.evaluate(currentBadge, tasksCompleted)
+            if (newBadge != currentBadge) {
                 _currentBadge.value = newBadge
                 _showBadgeAchievement.value = newBadge
+                badgeManager.evaluateUserBadge(userId) // This will update the badge in the repository
             }
         }
     }
@@ -331,12 +331,12 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = firebaseAuth.currentUser?.uid ?: return@launch
             val oldBadge = _currentBadge.value
-            val newBadge = badgeManager.evaluateBadge(_completedTaskCount.value)
+            val newBadge = badgeEvaluator.evaluate(oldBadge, _completedTaskCount.value)
             if (newBadge != oldBadge) {
                 _currentBadge.value = newBadge
                 _showBadgeAchievement.value = newBadge
                 _showConfetti.value = true // Trigger confetti for new badge
-                badgeRepository.updateUserBadge(userId, newBadge)
+                badgeManager.evaluateUserBadge(userId) // This will update the badge in the repository
             }
         }
     }
@@ -1247,10 +1247,6 @@ class TaskViewModel @Inject constructor(
         saveUserPreferences()
     }
 
-    fun updateNotificationSound(sound: String) {
-        _userPreferences.value = _userPreferences.value.copy(notificationSound = sound)
-        saveUserPreferences()
-    }
 
     fun getCompletionData(timeFrame: TimeFrame): Flow<List<Pair<Int, Int>>> = flow {
         when (timeFrame) {

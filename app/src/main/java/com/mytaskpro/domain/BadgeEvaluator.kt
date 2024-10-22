@@ -4,5 +4,5 @@ import com.mytaskpro.data.Badge
 import com.mytaskpro.data.UserBadgeInfo
 
 interface BadgeEvaluator {
-    fun evaluate(tasksCompleted: Int): Badge
+    fun evaluate(currentBadge: Badge, tasksCompleted: Int): Badge
 }

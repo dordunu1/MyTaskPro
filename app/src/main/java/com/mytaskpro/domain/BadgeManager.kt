@@ -10,31 +10,29 @@ import javax.inject.Singleton
 
 class BadgeManager @Inject constructor(
     private val badgeRepository: BadgeRepository,
-    private val badgeEvaluator: TaskCompletionBadgeEvaluator
+    private val badgeEvaluator: BadgeEvaluator
 ) {
 
-    fun evaluateBadge(completedTaskCount: Int): Badge {
-        return when {
-            completedTaskCount >= 350 -> Badge.DIAMOND
-            completedTaskCount >= 200 -> Badge.GOLD
-            completedTaskCount >= 80 -> Badge.SILVER
-            completedTaskCount >= 30 -> Badge.BRONZE
-            else -> Badge.NONE
+    class TaskCompletionBadgeEvaluator : BadgeEvaluator {
+        override fun evaluate(currentBadge: Badge, tasksCompleted: Int): Badge {
+            val newBadge = when {
+                tasksCompleted >= 350 -> Badge.DIAMOND
+                tasksCompleted >= 200 -> Badge.GOLD
+                tasksCompleted >= 80 -> Badge.SILVER
+                tasksCompleted >= 30 -> Badge.BRONZE  // Changed from 30 to 2 for testing
+                else -> Badge.NONE
+            }
+            return if (newBadge.ordinal > currentBadge.ordinal) newBadge else currentBadge
         }
     }
 
     suspend fun evaluateUserBadge(userId: String) {
         val currentBadgeInfo = badgeRepository.getBadgeInfoForUser(userId).first() ?: return
         val tasksCompleted = currentBadgeInfo.tasksCompleted
-        val newBadge = badgeEvaluator.evaluate(tasksCompleted)
+        val newBadge = badgeEvaluator.evaluate(currentBadgeInfo.currentBadge, tasksCompleted)
         Log.d(
             "BadgeManager",
-            "Evaluating badge: Tasks completed: $tasksCompleted, New badge: $newBadge"
-        )
-
-        Log.d(
-            "BadgeManager",
-            "Evaluating badge: Tasks completed: $tasksCompleted, New badge: $newBadge"
+            "Evaluating badge: Tasks completed: $tasksCompleted, Current badge: ${currentBadgeInfo.currentBadge}, New badge: $newBadge"
         )
 
         if (newBadge != currentBadgeInfo.currentBadge) {
@@ -45,7 +43,6 @@ class BadgeManager @Inject constructor(
             )
         }
     }
-
 
     suspend fun incrementTasksCompleted(userId: String) {
         badgeRepository.incrementTasksCompleted(userId)

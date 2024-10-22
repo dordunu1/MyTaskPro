@@ -4,16 +4,16 @@ import com.mytaskpro.data.Badge
 import com.mytaskpro.data.UserBadgeInfo
 import javax.inject.Inject
 
-class TaskCompletionBadgeEvaluator : BadgeEvaluator {
-    override fun evaluate(tasksCompleted: Int): Badge {
-        return when {
-            tasksCompleted >= 1 -> Badge.BRONZE
-            tasksCompleted >= 50 -> Badge.SILVER
-            tasksCompleted >= 100 -> Badge.GOLD
-            tasksCompleted >= 200 -> Badge.DIAMOND
+class TaskCompletionBadgeEvaluator @Inject constructor() : BadgeEvaluator {
+    override fun evaluate(currentBadge: Badge, tasksCompleted: Int): Badge {
+        val newBadge = when {
+            tasksCompleted >= 350 -> Badge.DIAMOND
+            tasksCompleted >= 200 -> Badge.GOLD
+            tasksCompleted >= 80 -> Badge.SILVER
+            tasksCompleted >= 30 -> Badge.BRONZE
             else -> Badge.NONE
         }
+        return if (newBadge.ordinal > currentBadge.ordinal) newBadge else currentBadge
     }
 }
-
 

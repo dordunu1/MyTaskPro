@@ -25,7 +25,6 @@ import com.mytaskpro.domain.BadgeManager
 import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.repository.BadgeRepository
 import com.mytaskpro.utils.StatusBarNotificationManager
-import androidx.datastore.preferences.preferencesDataStore
 import com.mytaskpro.data.PreferencesManager
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -92,9 +91,10 @@ object AppModule {
         return database.badgeDao()
     }
 
+
     @Provides
     @Singleton
-    fun provideTaskCompletionBadgeEvaluator(): TaskCompletionBadgeEvaluator {
+    fun provideTaskCompletionBadgeEvaluator(): BadgeEvaluator {
         return TaskCompletionBadgeEvaluator()
     }
 
@@ -102,9 +102,9 @@ object AppModule {
     @Singleton
     fun provideBadgeManager(
         badgeRepository: BadgeRepository,
-        taskCompletionBadgeEvaluator: TaskCompletionBadgeEvaluator
+        badgeEvaluator: BadgeEvaluator
     ): BadgeManager {
-        return BadgeManager(badgeRepository, taskCompletionBadgeEvaluator)
+        return BadgeManager(badgeRepository, badgeEvaluator)
     }
 
     @Provides
