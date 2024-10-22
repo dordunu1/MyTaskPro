@@ -111,7 +111,7 @@ private fun CategoryItem(
     ) {
         Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(12.dp)
                 .clip(CircleShape)
                 .background(Color(category.color))
         )
