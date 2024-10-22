@@ -232,10 +232,6 @@ fun ClickableSetting(title: String, onClick: () -> Unit) {
 fun NotificationSettingsSection(viewModel: SettingsViewModel) {
     SettingsSection(title = "Notifications") {
         SwitchSetting("Task Reminders", viewModel.taskReminders.collectAsState().value) { viewModel.toggleTaskReminders() }
-        SwitchSetting("Daily Summary", viewModel.dailySummary.collectAsState().value) { viewModel.toggleDailySummary() }
-        if (viewModel.dailySummary.collectAsState().value) {
-            TimeSetting("Summary Time", viewModel.dailySummaryTime.collectAsState().value) { viewModel.setDailySummaryTime(it) }
-        }
     }
 }
 
@@ -252,22 +248,24 @@ fun SyncSection(
     val syncStatus by rememberUpdatedState(settingsViewModel.syncStatus.collectAsState().value)
     val lastSyncTime by rememberUpdatedState(settingsViewModel.lastSyncTime.collectAsState().value)
     val isGoogleSyncEnabled by rememberUpdatedState(settingsViewModel.isGoogleSyncEnabled.collectAsState().value)
+    val isGoogleCalendarSyncEnabled by rememberUpdatedState(settingsViewModel.isGoogleCalendarSyncEnabled.collectAsState().value)
     val isSyncing by rememberUpdatedState(settingsViewModel.isSyncing.collectAsState().value)
     val userEmail by settingsViewModel.userEmail.collectAsState()
 
     var forceUpdate by remember { mutableStateOf(0) }
 
-    LaunchedEffect(syncStatus, lastSyncTime, isGoogleSyncEnabled, isSyncing, forceUpdate) {
+    LaunchedEffect(syncStatus, lastSyncTime, isGoogleSyncEnabled, isGoogleCalendarSyncEnabled, isSyncing, forceUpdate) {
         Log.d("SyncSection", "Current sync status: $syncStatus")
         Log.d("SyncSection", "Last sync time: $lastSyncTime")
         Log.d("SyncSection", "Is Google Sync enabled: $isGoogleSyncEnabled")
+        Log.d("SyncSection", "Is Google Calendar Sync enabled: $isGoogleCalendarSyncEnabled")
         Log.d("SyncSection", "Is syncing: $isSyncing")
         Log.d("SyncSection", "Force update trigger: $forceUpdate")
         Log.d("SyncSection", "Current user email: $userEmail")
     }
 
     SettingsSection(title = "Sync") {
-        key(syncStatus, lastSyncTime, isGoogleSyncEnabled, isSyncing, forceUpdate) {
+        key(syncStatus, lastSyncTime, isGoogleSyncEnabled, isGoogleCalendarSyncEnabled, isSyncing, forceUpdate) {
             Column {
                 if (isUserSignedIn) {
                     userEmail?.let { email ->
@@ -278,6 +276,9 @@ fun SyncSection(
                         )
                     }
                     SwitchSetting("Google Sync", isGoogleSyncEnabled) { settingsViewModel.toggleGoogleSync() }
+                    SwitchSetting("Google Calendar Sync", isGoogleCalendarSyncEnabled) {
+                        settingsViewModel.toggleGoogleCalendarSync(userEmail ?: "")
+                    }
                     if (isGoogleSyncEnabled) {
                         Text(
                             text = "Last synced: ${lastSyncTime ?: "Never"}",

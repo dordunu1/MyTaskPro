@@ -9,9 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 import android.content.Intent
 import android.net.Uri
@@ -22,17 +20,24 @@ import androidx.datastore.preferences.core.edit
 import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.mytaskpro.services.GoogleCalendarSyncService
+
+
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-    private val statusBarNotificationManager: StatusBarNotificationManager
-
+    private val statusBarNotificationManager: StatusBarNotificationManager,
+    private val googleCalendarSyncService: GoogleCalendarSyncService
 ) : ViewModel() {
 
     // General Settings
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode = _isDarkMode.asStateFlow()
+
+    private val _isGoogleCalendarSyncEnabled = MutableStateFlow(false)
+    val isGoogleCalendarSyncEnabled: StateFlow<Boolean> = _isGoogleCalendarSyncEnabled.asStateFlow()
+
 
     private val _is24HourFormat = MutableStateFlow(false)
     val is24HourFormat = _is24HourFormat.asStateFlow()
@@ -50,11 +55,6 @@ class SettingsViewModel @Inject constructor(
     private val _taskReminders = MutableStateFlow(true)
     val taskReminders = _taskReminders.asStateFlow()
 
-    private val _dailySummary = MutableStateFlow(false)
-    val dailySummary = _dailySummary.asStateFlow()
-
-    private val _dailySummaryTime = MutableStateFlow(LocalTime.of(20, 0))
-    val dailySummaryTime = _dailySummaryTime.asStateFlow()
 
     // Sync Settings
     private val _isGoogleSyncEnabled = MutableStateFlow(false)
@@ -102,6 +102,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun toggleGoogleCalendarSync(accountName: String) {
+        viewModelScope.launch {
+            val newValue = !_isGoogleCalendarSyncEnabled.value
+            _isGoogleCalendarSyncEnabled.value = newValue
+            if (newValue) {
+                googleCalendarSyncService.startSync(accountName)
+            } else {
+                googleCalendarSyncService.stopSync()
+            }
+        }
+    }
+
+    fun onGoogleCalendarSyncEnabled(accountName: String) {
+        viewModelScope.launch {
+            googleCalendarSyncService.startSync(accountName)
+        }
+    }
+
+    companion object {
+        val GOOGLE_CALENDAR_SYNC_KEY = booleanPreferencesKey("google_calendar_sync")
+    }
+
     // Functions to update settings
     fun toggleDarkMode() {
         viewModelScope.launch(Dispatchers.Main) {
@@ -143,17 +165,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun toggleDailySummary() {
-        viewModelScope.launch(Dispatchers.Main) {
-            _dailySummary.value = !_dailySummary.value
-        }
-    }
 
-    fun setDailySummaryTime(time: LocalTime) {
-        viewModelScope.launch(Dispatchers.Main) {
-            _dailySummaryTime.value = time
-        }
-    }
 
     fun toggleGoogleSync() {
         viewModelScope.launch(Dispatchers.Main) {

@@ -61,7 +61,7 @@ import java.time.LocalTime
 import com.mytaskpro.data.NoteTypeAdapter
 
 import com.mytaskpro.data.UpcomingTask
-
+import com.mytaskpro.services.GoogleCalendarSyncService
 
 
 @HiltViewModel
@@ -76,7 +76,9 @@ class TaskViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>, // Make sure this type is correct
     private val firestore: FirebaseFirestore,
     private val badgeRepository: BadgeRepository,
-    private val badgeManager: BadgeManager
+    private val badgeManager: BadgeManager,
+    private val googleCalendarSyncService: GoogleCalendarSyncService
+
 ) : AndroidViewModel(application as Application) {
 
     data class UpcomingTask(
@@ -172,7 +174,20 @@ class TaskViewModel @Inject constructor(
         _notificationUpdateTrigger.value += 1
     }
 
-
+    fun startGoogleCalendarSync(accountName: String) {
+        viewModelScope.launch {
+            try {
+                _syncStatus.value = SyncStatus.Syncing
+                googleCalendarSyncService.startSync(accountName)
+                _syncStatus.value = SyncStatus.Success
+                // You might want to show a success message to the user
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error starting Google Calendar sync", e)
+                _syncStatus.value = SyncStatus.Error
+                // Show an error message to the user
+            }
+        }
+    }
 
 
     fun getTodaysTasks(): Flow<List<Task>> {

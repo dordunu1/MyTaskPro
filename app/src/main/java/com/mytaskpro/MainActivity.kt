@@ -41,6 +41,10 @@ import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.google.api.services.calendar.CalendarScopes
+import com.google.android.gms.common.api.Scope
+
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -61,11 +65,22 @@ class MainActivity : ComponentActivity() {
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
+            // Check if Calendar permission was granted
+            val hasCalendarPermission = GoogleSignIn.hasPermissions(account, Scope(CalendarScopes.CALENDAR))
+
             taskViewModel.signInWithGoogle(account) { authResult ->
                 if (authResult != null && authResult.user != null) {
                     Toast.makeText(this, "Google Sign-In Successful", Toast.LENGTH_SHORT).show()
                     Log.d("MainActivity", "Updating email to: ${account.email}")
                     settingsViewModel.updateSignedInEmail(account.email)
+
+                    if (hasCalendarPermission) {
+                        // Calendar permission granted, start sync
+                        account.email?.let { taskViewModel.startGoogleCalendarSync(it) }
+                    } else {
+                        // Calendar permission not granted, you may want to inform the user
+                        Toast.makeText(this, "Calendar permission not granted", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     Toast.makeText(this, "Google Sign-In Failed", Toast.LENGTH_SHORT).show()
                 }
@@ -121,6 +136,7 @@ class MainActivity : ComponentActivity() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
+            .requestScopes(Scope(CalendarScopes.CALENDAR))
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 

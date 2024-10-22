@@ -2,7 +2,6 @@ package com.mytaskpro.data
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
-import java.time.LocalDate
 import java.util.Date
 
 @Dao
@@ -20,7 +19,7 @@ interface TaskDao {
     suspend fun insertTask(task: Task): Long
 
     @Delete
-    suspend fun deleteTask(task: Task?)
+    suspend fun deleteTask(task: Task) // Changed from (task: Task?)
 
     @Query("SELECT * FROM tasks WHERE isCompleted = 0")
     fun getPendingTasks(): Flow<List<Task>>
@@ -40,7 +39,6 @@ interface TaskDao {
     @Query("UPDATE tasks SET reminderTime = NULL WHERE id = :taskId")
     suspend fun cancelReminder(taskId: Int)
 
-    // Updated functions for handling completed tasks
     @Query("UPDATE tasks SET isCompleted = 1, completionDate = :completionDate WHERE id = :taskId")
     suspend fun markTaskAsCompleted(taskId: Int, completionDate: Date)
 
@@ -94,7 +92,6 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE date(dueDate / 1000, 'unixepoch') = date(:date / 1000, 'unixepoch') AND isCompleted = 0")
     suspend fun getTasksForDate(date: Long): List<Task>
-
 
     @Query("SELECT * FROM tasks WHERE lastModified > :lastSyncTime")
     suspend fun getTasksModifiedSince(lastSyncTime: Long): List<Task>

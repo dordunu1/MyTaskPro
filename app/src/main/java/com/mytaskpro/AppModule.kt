@@ -31,6 +31,8 @@ import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.work.WorkManager
+
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -57,6 +59,12 @@ object AppModule {
     @Singleton
     fun providePreferencesManager(dataStore: DataStore<Preferences>): PreferencesManager {
         return PreferencesManager(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
+        return WorkManager.getInstance(context)
     }
 
     @Provides
