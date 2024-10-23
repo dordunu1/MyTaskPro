@@ -79,10 +79,16 @@ class TaskViewModel @Inject constructor(
     private val badgeManager: BadgeManager,
     private val googleCalendarSyncService: GoogleCalendarSyncService,
     private val badgeEvaluator: TaskCompletionBadgeEvaluator
-
-
 ) : AndroidViewModel(application as Application) {
 
+
+    fun refreshTask(taskId: Int) {
+        viewModelScope.launch {
+            getTaskById(taskId).collect { updatedTask ->
+                _currentTask.value = updatedTask
+            }
+        }
+    }
     data class UpcomingTask(
         val id: Int,
         val title: String,
@@ -102,6 +108,9 @@ class TaskViewModel @Inject constructor(
         )
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
     val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
+    private val _currentTask = MutableStateFlow<Task?>(null)
+    val currentTask: StateFlow<Task?> = _currentTask.asStateFlow()
 
     private val _upcomingTasks = MutableStateFlow<Map<LocalDate, List<UpcomingTask>>>(emptyMap())
     val upcomingTasks: StateFlow<Map<LocalDate, List<UpcomingTask>>> = _upcomingTasks.asStateFlow()
@@ -364,6 +373,7 @@ class TaskViewModel @Inject constructor(
             emit(taskDao.getTaskById(id))
         }
     }
+
 
     fun createCustomCategory(categoryName: String) {
         viewModelScope.launch {

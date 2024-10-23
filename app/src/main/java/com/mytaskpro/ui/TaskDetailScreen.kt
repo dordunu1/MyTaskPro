@@ -40,6 +40,7 @@ fun TaskDetailScreen(
     val task by viewModel.getTaskById(taskId).collectAsState(initial = null)
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
+
     task?.let { currentTask ->
         var title by remember { mutableStateOf(currentTask.title) }
         var description by remember { mutableStateOf(currentTask.description) }

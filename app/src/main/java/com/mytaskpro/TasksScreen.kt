@@ -41,6 +41,12 @@ import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 
 fun formatDate(date: Date): String {
@@ -379,7 +385,8 @@ fun TaskItem(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
                         onClick = {
@@ -396,6 +403,35 @@ fun TaskItem(
                             tint = if (task.snoozeCount > 0) Color.Red else Color.Gray,
                             modifier = Modifier.size(24.dp)
                         )
+                    }
+
+                    if (task.repetitiveSettings != null) {
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isHovered by interactionSource.collectIsHoveredAsState()
+
+                        Box {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = "Repetitive Task",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .hoverable(interactionSource)
+                            )
+                            if (isHovered) {
+                                Surface(
+                                    modifier = Modifier.padding(top = 24.dp),
+                                    shape = MaterialTheme.shapes.small,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Text(
+                                        "Repetitive Task",
+                                        modifier = Modifier.padding(8.dp),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 if (task.showSnoozeOptions && task.snoozeCount == 0) {
