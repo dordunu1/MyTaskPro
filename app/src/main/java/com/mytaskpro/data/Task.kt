@@ -12,8 +12,13 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Date
 
+// Add this enum for TaskPriority
+enum class TaskPriority {
+    HIGH, MEDIUM, LOW
+}
+
 @Entity(tableName = "tasks")
-@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class, LocalDateTimeListConverter::class)
+@TypeConverters(RepetitiveTaskSettingsConverter::class, CategoryTypeConverter::class, DateConverter::class, LocalDateTimeListConverter::class, TaskPriorityConverter::class)
 data class Task(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -37,7 +42,10 @@ data class Task(
     val completionDate: Date? = null,
     val lastModified: Long = System.currentTimeMillis(),
     val creationDate: Date = Date(),
-    val snoozeHistory: List<LocalDateTime> = emptyList()
+    val snoozeHistory: List<LocalDateTime> = emptyList(),
+
+    // Add this new field for task priority
+    val priority: TaskPriority = TaskPriority.MEDIUM
 ) {
     @get:PropertyName("categoryColor")
     val categoryColor: Int
@@ -59,6 +67,19 @@ data class Task(
     }
 }
 
+
+// Add this new converter for TaskPriority
+class TaskPriorityConverter {
+    @TypeConverter
+    fun fromTaskPriority(priority: TaskPriority): String {
+        return priority.name
+    }
+
+    @TypeConverter
+    fun toTaskPriority(value: String): TaskPriority {
+        return TaskPriority.valueOf(value)
+    }
+}
 class RepetitiveTaskSettingsConverter {
     @TypeConverter
     fun fromRepetitiveTaskSettings(settings: RepetitiveTaskSettings?): String? {

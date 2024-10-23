@@ -18,7 +18,9 @@ import java.time.LocalTime
 import java.time.ZoneId
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.ArrowDropDown
 import com.mytaskpro.data.RepetitiveTaskSettings
+import com.mytaskpro.data.TaskPriority
 import com.mytaskpro.utils.TimeUtils
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TimePicker
@@ -36,7 +38,7 @@ import java.time.Instant
 fun AddTaskDialog(
     category: CategoryType,
     onDismiss: () -> Unit,
-    onTaskAdded: (String, String, Date, Date?, Boolean, RepetitiveTaskSettings?) -> Unit
+    onTaskAdded: (String, String, Date, Date?, Boolean, RepetitiveTaskSettings?, TaskPriority) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -46,12 +48,14 @@ fun AddTaskDialog(
     var reminderTime by remember { mutableStateOf(LocalTime.now()) }
     var isReminderSet by remember { mutableStateOf(false) }
     var notifyOnDueDate by remember { mutableStateOf(true) }
+    var priority by remember { mutableStateOf(TaskPriority.MEDIUM) }
 
     var showDueDatePicker by remember { mutableStateOf(false) }
     var showDueTimePicker by remember { mutableStateOf(false) }
     var showReminderDatePicker by remember { mutableStateOf(false) }
     var showReminderTimePicker by remember { mutableStateOf(false) }
     var showRepetitiveTaskDialog by remember { mutableStateOf(false) }
+    var showPriorityDropdown by remember { mutableStateOf(false) }
     var repetitiveTaskSettings by remember { mutableStateOf<RepetitiveTaskSettings?>(null) }
 
     AlertDialog(
@@ -158,6 +162,30 @@ fun AddTaskDialog(
                         Text("⏰ Set Reminder Time: ${TimeUtils.formatTime(reminderTime)}")
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Box {
+                    Button(
+                        onClick = { showPriorityDropdown = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Priority: $priority")
+                        Icon(Icons.Default.ArrowDropDown, "Show priority options")
+                    }
+                    DropdownMenu(
+                        expanded = showPriorityDropdown,
+                        onDismissRequest = { showPriorityDropdown = false }
+                    ) {
+                        TaskPriority.values().forEach { priorityOption ->
+                            DropdownMenuItem(
+                                text = { Text(priorityOption.name) },
+                                onClick = {
+                                    priority = priorityOption
+                                    showPriorityDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -172,7 +200,7 @@ fun AddTaskDialog(
                                 .toInstant()
                         )
                     } else null
-                    onTaskAdded(title, description, dueDatetime, reminderDatetime, notifyOnDueDate, repetitiveTaskSettings)
+                    onTaskAdded(title, description, dueDatetime, reminderDatetime, notifyOnDueDate, repetitiveTaskSettings, priority)
                 },
                 enabled = title.isNotBlank()
             ) {

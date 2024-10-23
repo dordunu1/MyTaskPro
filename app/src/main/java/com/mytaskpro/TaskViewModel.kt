@@ -59,10 +59,9 @@ import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalTime
 import com.mytaskpro.data.NoteTypeAdapter
-
-import com.mytaskpro.data.UpcomingTask
 import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.services.GoogleCalendarSyncService
+import com.mytaskpro.data.TaskPriority
 
 
 @HiltViewModel
@@ -294,6 +293,7 @@ class TaskViewModel @Inject constructor(
                     Log.d("TaskViewModel", "CustomCategory filter: task=${task.title}, category=${task.category}, filterCategory=${filter.category}, isCompleted=${task.isCompleted}, matches=$matches")
                     matches
                 }
+                is FilterOption.Priority -> task.priority == filter.priority
                 else -> false
             }
         }.sortedWith { a, b ->
@@ -302,6 +302,12 @@ class TaskViewModel @Inject constructor(
                 SortOption.TITLE -> a.title.compareTo(b.title)
                 SortOption.COMPLETED -> compareValuesBy(b, a) { it.isCompleted }
                 SortOption.UNCOMPLETED -> compareValuesBy(a, b) { it.isCompleted }
+                SortOption.PRIORITY -> when {
+                    a.priority == b.priority -> 0
+                    a.priority == TaskPriority.HIGH || (a.priority == TaskPriority.MEDIUM && b.priority == TaskPriority.LOW) -> -1
+                    else -> 1
+                }
+                else -> 0
             }
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -564,11 +570,12 @@ class TaskViewModel @Inject constructor(
         dueDate: Date,
         reminderTime: Date?,
         notifyOnDueDate: Boolean,
-        repetitiveSettings: RepetitiveTaskSettings?
+        repetitiveSettings: RepetitiveTaskSettings?,
+        priority: TaskPriority // Add this parameter
     ) {
         viewModelScope.launch {
             try {
-                Log.d("TaskViewModel", "Adding task with category: $category")
+                Log.d("TaskViewModel", "Adding task with category: $category and priority: $priority")
                 val newTask = Task(
                     title = title,
                     description = description,
@@ -576,7 +583,8 @@ class TaskViewModel @Inject constructor(
                     dueDate = dueDate,
                     reminderTime = reminderTime,
                     notifyOnDueDate = notifyOnDueDate,
-                    repetitiveSettings = repetitiveSettings
+                    repetitiveSettings = repetitiveSettings,
+                    priority = priority // Add this field
                 )
                 Log.d("TaskViewModel", "New task created: $newTask")
                 val insertedId = taskDao.insertTask(newTask)
@@ -628,7 +636,8 @@ class TaskViewModel @Inject constructor(
         dueDate: Date,
         reminderTime: Date?,
         notifyOnDueDate: Boolean,
-        repetitiveSettings: RepetitiveTaskSettings?
+        repetitiveSettings: RepetitiveTaskSettings?,
+        priority: TaskPriority // Add this parameter
     ) {
         viewModelScope.launch {
             val updatedTask = Task(
@@ -639,7 +648,8 @@ class TaskViewModel @Inject constructor(
                 dueDate,
                 reminderTime,
                 notifyOnDueDate = notifyOnDueDate,
-                repetitiveSettings = repetitiveSettings
+                repetitiveSettings = repetitiveSettings,
+                priority = priority // Add this field
             )
             taskDao.updateTask(updatedTask)
             scheduleNotifications(updatedTask)
@@ -664,6 +674,24 @@ class TaskViewModel @Inject constructor(
             updateCompletionPercentage()
             triggerNotificationUpdate()
             fetchUpcomingTasks()
+        }
+    }
+
+    // Add a new function to update task priority
+    fun updateTaskPriority(taskId: Int, newPriority: TaskPriority) {
+        viewModelScope.launch {
+            try {
+                val task = taskDao.getTaskById(taskId)
+                if (task != null) {
+                    val updatedTask = task.copy(priority = newPriority)
+                    taskDao.updateTask(updatedTask)
+                    Log.d("TaskViewModel", "Updated priority for task $taskId to $newPriority")
+                } else {
+                    Log.e("TaskViewModel", "Task not found for id $taskId")
+                }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error updating task priority: ${e.message}")
+            }
         }
     }
 
@@ -1535,7 +1563,8 @@ class TaskViewModel @Inject constructor(
         DUE_DATE("Due Date"),
         TITLE("Title"),
         COMPLETED("Completed"),
-        UNCOMPLETED("Uncompleted")
+        UNCOMPLETED("Uncompleted"),
+        PRIORITY("Priority") // Add this line
     }
 
     sealed class FilterOption {
@@ -1543,12 +1572,25 @@ class TaskViewModel @Inject constructor(
         data class Category(val category: CategoryType) : FilterOption()
         object Completed : FilterOption()
         data class CustomCategory(val category: CategoryType) : FilterOption()
+        data class Priority(val priority: TaskPriority) : FilterOption()
 
         companion object {
             fun fromString(value: String): FilterOption {
-                return when (value.uppercase()) {
-                    "ALL" -> All
-                    "COMPLETED" -> Completed
+                return when {
+                    value.uppercase() == "ALL" -> All
+                    value.uppercase() == "COMPLETED" -> Completed
+                    value.startsWith("CATEGORY_") -> {
+                        val categoryString = value.removePrefix("CATEGORY_")
+                        Category(CategoryType.values().find { it.type == categoryString } ?: CategoryType.WORK)
+                    }
+                    value.startsWith("CUSTOM_CATEGORY_") -> {
+                        val categoryName = value.removePrefix("CUSTOM_CATEGORY_")
+                        CustomCategory(CategoryType(type = "CUSTOM", categoryName, Icons.Default.Label, CategoryType.generateRandomColor()))
+                    }
+                    value.startsWith("PRIORITY_") -> {
+                        val priorityString = value.removePrefix("PRIORITY_")
+                        Priority(TaskPriority.valueOf(priorityString))
+                    }
                     else -> All
                 }
             }
@@ -1558,8 +1600,9 @@ class TaskViewModel @Inject constructor(
             return when (this) {
                 is All -> "ALL"
                 is Completed -> "COMPLETED"
-                is Category -> "CATEGORY_${category.toString()}"
+                is Category -> "CATEGORY_${category.type}"
                 is CustomCategory -> "CUSTOM_CATEGORY_${category.displayName}"
+                is Priority -> "PRIORITY_${priority.name}"
                 else -> "UNKNOWN" // This covers any potential future FilterOption subclasses
             }
         }

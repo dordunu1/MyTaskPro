@@ -8,8 +8,8 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class, UserBadgeInfo::class], version = 11)
-@TypeConverters(Converters::class)
+@Database(entities = [Task::class, Note::class, UserBadgeInfo::class], version = 12)
+@TypeConverters(Converters::class, TaskPriorityConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun noteDao(): NoteDao
@@ -37,14 +37,14 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_7_8,
                         MIGRATION_8_9,
                         MIGRATION_9_10,
-                        MIGRATION_10_11
+                        MIGRATION_10_11,
+                        MIGRATION_11_12
                     )
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
-
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE Note ADD COLUMN photo_path TEXT")
@@ -166,5 +166,12 @@ abstract class AppDatabase : RoomDatabase() {
                         lastUpdated INTEGER NOT NULL
                     )
                 """)
+    }
+}
+
+private val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add the priority column to the tasks table
+        database.execSQL("ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'MEDIUM'")
     }
 }

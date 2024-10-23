@@ -23,6 +23,10 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import com.mytaskpro.data.TaskPriority
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +52,8 @@ fun TaskDetailScreen(
         var notifyOnDueDate by remember { mutableStateOf(currentTask.notifyOnDueDate) }
         var isCompleted by remember { mutableStateOf(currentTask.isCompleted) }
         var showRepetitiveSettingsDialog by remember { mutableStateOf(false) }
+        var selectedPriority by remember { mutableStateOf(currentTask.priority) }
+        var expandedPriority by remember { mutableStateOf(false) }
 
         var showDueDatePicker by remember { mutableStateOf(false) }
         var showDueTimePicker by remember { mutableStateOf(false) }
@@ -105,12 +111,42 @@ fun TaskDetailScreen(
                         selectedCategory = category,
                         onCategorySelected = { category = it }
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = expandedPriority,
+                        onExpandedChange = { expandedPriority = !expandedPriority }
+                    ) {
+                        TextField(
+                            value = selectedPriority.name,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Priority") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPriority) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedPriority,
+                            onDismissRequest = { expandedPriority = false }
+                        ) {
+                            TaskPriority.values().forEach { priority ->
+                                DropdownMenuItem(
+                                    text = { Text(priority.name) },
+                                    onClick = {
+                                        selectedPriority = priority
+                                        expandedPriority = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 } else {
                     Text(currentTask.title, style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(currentTask.description, style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Category: ${currentTask.category.displayName}", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Priority: ${currentTask.priority.name}", style = MaterialTheme.typography.bodyMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -221,12 +257,13 @@ fun TaskDetailScreen(
                                     dueDate = Date.from(dueDate.atTime(dueTime).atZone(ZoneId.systemDefault()).toInstant()),
                                     reminderTime = if (isReminderSet) Date.from(reminderDate.atTime(reminderTime).atZone(ZoneId.systemDefault()).toInstant()) else null,
                                     notifyOnDueDate = notifyOnDueDate,
-                                    repetitiveSettings = currentTask.repetitiveSettings // Keep the original repetitive settings
+                                    repetitiveSettings = currentTask.repetitiveSettings,
+                                    priority = selectedPriority
                                 )
                                 editing = false
                             }
                         ) {
-                            Text("Save Changes")
+                            Text(text = "Save Changes")
                         }
                         OutlinedButton(onClick = { editing = false }) {
                             Text("Cancel")

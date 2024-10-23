@@ -17,6 +17,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.mytaskpro.data.TaskPriority
 import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +40,11 @@ class SettingsViewModel @Inject constructor(
     private val _isGoogleCalendarSyncEnabled = MutableStateFlow(false)
     val isGoogleCalendarSyncEnabled: StateFlow<Boolean> = _isGoogleCalendarSyncEnabled.asStateFlow()
 
+    private val _isTaskPriorityEnabled = MutableStateFlow(false)
+    val isTaskPriorityEnabled: StateFlow<Boolean> = _isTaskPriorityEnabled.asStateFlow()
+
+    private val _defaultTaskPriority = MutableStateFlow(TaskPriority.MEDIUM)
+    val defaultTaskPriority: StateFlow<TaskPriority> = _defaultTaskPriority.asStateFlow()
 
     private val _is24HourFormat = MutableStateFlow(false)
     val is24HourFormat = _is24HourFormat.asStateFlow()
@@ -48,7 +55,8 @@ class SettingsViewModel @Inject constructor(
     private val _isStatusBarQuickAddEnabled = MutableStateFlow(false)
     val isStatusBarQuickAddEnabled: StateFlow<Boolean> = _isStatusBarQuickAddEnabled.asStateFlow()
 
-    private val _availableThemes = MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
+    private val _availableThemes =
+        MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
     val availableThemes = _availableThemes.asStateFlow()
 
     // Notification Settings
@@ -96,8 +104,33 @@ class SettingsViewModel @Inject constructor(
             dataStore.data.collect { preferences ->
                 _isDarkMode.value = preferences[PreferencesKeys.DARK_MODE] ?: false
                 _is24HourFormat.value = preferences[PreferencesKeys.HOUR_FORMAT] ?: false
-                _isStatusBarQuickAddEnabled.value = preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] ?: false
+                _isStatusBarQuickAddEnabled.value =
+                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] ?: false
+                _isTaskPriorityEnabled.value =
+                    preferences[PreferencesKeys.IS_TASK_PRIORITY_ENABLED] ?: false
+                _defaultTaskPriority.value = TaskPriority.valueOf(
+                    preferences[PreferencesKeys.DEFAULT_TASK_PRIORITY] ?: TaskPriority.MEDIUM.name
+                )
                 updateStatusBarNotification()
+            }
+        }
+    }
+
+    fun toggleTaskPriority() {
+        viewModelScope.launch {
+            val newValue = !_isTaskPriorityEnabled.value
+            _isTaskPriorityEnabled.value = newValue
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.IS_TASK_PRIORITY_ENABLED] = newValue
+            }
+        }
+    }
+
+    fun setDefaultTaskPriority(priority: TaskPriority) {
+        viewModelScope.launch {
+            _defaultTaskPriority.value = priority
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.DEFAULT_TASK_PRIORITY] = priority.name
             }
         }
     }
@@ -164,7 +197,6 @@ class SettingsViewModel @Inject constructor(
             _taskReminders.value = !_taskReminders.value
         }
     }
-
 
 
     fun toggleGoogleSync() {
@@ -257,7 +289,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun getPlayStoreWebIntent(): Intent {
-        return Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro"))
+        return Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://play.google.com/store/apps/details?id=com.mytaskpro")
+        )
     }
 
     private fun updateStatusBarNotification() {
@@ -265,9 +300,13 @@ class SettingsViewModel @Inject constructor(
             try {
                 statusBarNotificationManager.updateQuickAddNotification(_isStatusBarQuickAddEnabled.value)
                 dataStore.edit { preferences ->
-                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] = _isStatusBarQuickAddEnabled.value
+                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] =
+                        _isStatusBarQuickAddEnabled.value
                 }
-                Log.d("SettingsViewModel", "Status bar quick add ${if (_isStatusBarQuickAddEnabled.value) "enabled" else "disabled"}")
+                Log.d(
+                    "SettingsViewModel",
+                    "Status bar quick add ${if (_isStatusBarQuickAddEnabled.value) "enabled" else "disabled"}"
+                )
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error updating status bar notification", e)
                 // Handle the error (e.g., show a toast or update UI)
@@ -293,5 +332,7 @@ class SettingsViewModel @Inject constructor(
         val DARK_MODE = booleanPreferencesKey("dark_mode")
         val HOUR_FORMAT = booleanPreferencesKey("hour_format")
         val STATUS_BAR_QUICK_ADD = booleanPreferencesKey("status_bar_quick_add")
+        val IS_TASK_PRIORITY_ENABLED = booleanPreferencesKey("is_task_priority_enabled")
+        val DEFAULT_TASK_PRIORITY = stringPreferencesKey("default_task_priority")
     }
 }

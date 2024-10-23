@@ -57,8 +57,6 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE dueDate >= :currentDate ORDER BY dueDate ASC LIMIT :limit")
     suspend fun getUpcomingTasks(currentDate: Long = System.currentTimeMillis(), limit: Int = 5): List<Task>
 
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY dueDate ASC LIMIT :limit")
-    suspend fun getTasksForWidget(limit: Int): List<Task>
 
     @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 0")
     suspend fun getPendingTaskCount(): Int
@@ -89,6 +87,20 @@ interface TaskDao {
         deleteAllTasks()
         insertTasks(tasks)
     }
+
+    @Query("SELECT * FROM tasks WHERE priority = :priority")
+    fun getTasksByPriority(priority: TaskPriority): Flow<List<Task>>
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 END, dueDate ASC")
+    fun getPendingTasksSortedByPriority(): Flow<List<Task>>
+
+    @Query("UPDATE tasks SET priority = :newPriority WHERE id = :taskId")
+    suspend fun updateTaskPriority(taskId: Int, newPriority: TaskPriority)
+
+    // You might want to update this existing query to include priority in the sorting
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 END, dueDate ASC LIMIT :limit")
+    suspend fun getTasksForWidget(limit: Int): List<Task>
+
 
     @Query("SELECT * FROM tasks WHERE date(dueDate / 1000, 'unixepoch') = date(:date / 1000, 'unixepoch') AND isCompleted = 0")
     suspend fun getTasksForDate(date: Long): List<Task>

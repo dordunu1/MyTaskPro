@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mytaskpro.data.TaskPriority
 import com.mytaskpro.ui.theme.AppTheme
 import com.mytaskpro.ui.theme.VibrantBlue
 import com.mytaskpro.viewmodel.TaskViewModel
@@ -74,7 +75,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             SyncSection(taskViewModel, settingsViewModel, isUserSignedIn, onGoogleSignIn, onSignOut)
             Spacer(modifier = Modifier.height(16.dp))
-            WidgetCustomizationSection(settingsViewModel)
+            TaskPrioritySection(settingsViewModel) // New section
             Spacer(modifier = Modifier.height(16.dp))
             PremiumSubscriptionSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
@@ -84,6 +85,7 @@ fun SettingsScreen(
         }
     }
 }
+
 
 @Composable
 fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeViewModel) {
@@ -391,10 +393,20 @@ fun SyncSection(
 }
 
 @Composable
-fun WidgetCustomizationSection(viewModel: SettingsViewModel) {
-    SettingsSection(title = "Widget Customization") {
-        DropdownSetting("Widget Theme", viewModel.widgetTheme.collectAsState().value, viewModel.availableThemes.collectAsState().value) { viewModel.setWidgetTheme(it) }
-        SliderSetting("Tasks to Show", viewModel.widgetTaskCount.collectAsState().value, 1f..10f) { viewModel.setWidgetTaskCount(it.toInt()) }
+fun TaskPrioritySection(viewModel: SettingsViewModel) {
+    SettingsSection(title = "Task Priority") {
+        SwitchSetting(
+            "Enable Task Priorities",
+            viewModel.isTaskPriorityEnabled.collectAsState().value
+        ) { viewModel.toggleTaskPriority() }
+
+        if (viewModel.isTaskPriorityEnabled.collectAsState().value) {
+            DropdownSetting(
+                "Default Priority",
+                viewModel.defaultTaskPriority.collectAsState().value.name,
+                TaskPriority.values().map { it.name }
+            ) { viewModel.setDefaultTaskPriority(TaskPriority.valueOf(it)) }
+        }
     }
 }
 

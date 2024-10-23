@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
                                 taskViewModel.hideAddTaskDialog()
                                 selectedCategory = null
                             },
-                            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
+                            onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings, priority ->
                                 taskViewModel.addTask(
                                     title = title,
                                     description = description,
@@ -266,7 +266,8 @@ class MainActivity : ComponentActivity() {
                                     dueDate = dueDate,
                                     reminderTime = reminderTime,
                                     notifyOnDueDate = notifyOnDueDate,
-                                    repetitiveSettings = repetitiveSettings
+                                    repetitiveSettings = repetitiveSettings,
+                                    priority = priority
                                 )
                                 taskViewModel.hideAddTaskDialog()
                                 selectedCategory = null

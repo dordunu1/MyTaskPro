@@ -389,13 +389,14 @@ fun EditTaskScreen(taskId: Int, viewModel: TaskViewModel, onNavigateBack: () -> 
                         dueDate = dueDate,
                         notifyOnDueDate = nonNullTask.notifyOnDueDate,
                         reminderTime = nonNullTask.reminderTime,
-                        repetitiveSettings = nonNullTask.repetitiveSettings
+                        repetitiveSettings = nonNullTask.repetitiveSettings,
+                        priority = nonNullTask.priority // Add this line
                     )
                     onNavigateBack()
                 },
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Text("Save Changes")
+                Text(text = "Save Changes")
             }
         }
     } ?: run {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -35,12 +36,18 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.mytaskpro.viewmodel.TaskViewModel.SortOption
 import androidx.compose.ui.text.style.TextDecoration
+import com.mytaskpro.data.TaskPriority
 import kotlinx.coroutines.delay
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CheckCircle
+
 
 fun formatDate(date: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     return formatter.format(date)
 }
+val Orange = Color(0xFFFFA500)
 
 fun getColorForDueDate(dueDate: Date): Color {
     val now = Date()
@@ -65,6 +72,7 @@ fun TasksScreen(
     val completedTaskCount by viewModel.completedTaskCount.collectAsState(initial = 0)
     val showConfetti by viewModel.showConfetti.collectAsState()
     val showAddTaskDialog by viewModel.showAddTaskDialog.collectAsState()
+
 
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -204,7 +212,7 @@ fun TasksScreen(
                     viewModel.hideAddTaskDialog()
                     selectedCategory = null
                 },
-                onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings ->
+                onTaskAdded = { title, description, dueDate, reminderTime, notifyOnDueDate, repetitiveSettings, priority ->
                     viewModel.addTask(
                         title = title,
                         description = description,
@@ -212,7 +220,8 @@ fun TasksScreen(
                         dueDate = dueDate,
                         reminderTime = reminderTime,
                         notifyOnDueDate = notifyOnDueDate,
-                        repetitiveSettings = repetitiveSettings
+                        repetitiveSettings = repetitiveSettings,
+                        priority = priority // Add this line
                     )
                     viewModel.hideAddTaskDialog()
                     selectedCategory = null
@@ -258,12 +267,13 @@ fun TaskItem(
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(true) }
+    var showPriorityMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(task.isCompleted) {
         if (task.isCompleted && !isCompletedFilter) {
-            delay(2000) // Wait for 2 seconds (duration of confetti animation)
+            delay(2000)
             isVisible = false
-            delay(300) // Wait for the fade-out animation
+            delay(300)
             onHideTask(task.id)
         }
     }
@@ -303,14 +313,40 @@ fun TaskItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = task.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (task.isOverdue()) Color.Red else getColorForDueDate(task.dueDate),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = task.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (task.isOverdue()) Color.Red else getColorForDueDate(task.dueDate),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = task.priority.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when (task.priority) {
+                                    TaskPriority.HIGH -> Color.Red
+                                    TaskPriority.MEDIUM -> Orange
+                                    TaskPriority.LOW -> Color.Green
+                                },
+                                modifier = Modifier
+                                    .background(
+                                        color = when (task.priority) {
+                                            TaskPriority.HIGH -> Color.Red.copy(alpha = 0.1f)
+                                            TaskPriority.MEDIUM -> Orange.copy(alpha = 0.1f)
+                                            TaskPriority.LOW -> Color.Green.copy(alpha = 0.1f)
+                                        },
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .clickable { showPriorityMenu = true }
+                            )
+                        }
                         Text(
                             text = task.description,
                             style = MaterialTheme.typography.bodyMedium,
@@ -390,6 +426,82 @@ fun TaskItem(
                 }
             }
         )
+    }
+
+    if (showPriorityMenu) {
+        PriorityMenu(
+            currentPriority = task.priority,
+            onPrioritySelected = { newPriority ->
+                viewModel.updateTaskPriority(task.id, newPriority)
+                showPriorityMenu = false
+            },
+            onDismiss = { showPriorityMenu = false }
+        )
+    }
+}
+
+@Composable
+fun PriorityIcon(priority: TaskPriority, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = when (priority) {
+                TaskPriority.HIGH -> Icons.Default.Warning
+                TaskPriority.MEDIUM -> Icons.Default.Info
+                TaskPriority.LOW -> Icons.Default.CheckCircle
+            },
+            contentDescription = "Task Priority: ${priority.name}",
+            tint = when (priority) {
+                TaskPriority.HIGH -> Color.Red
+                TaskPriority.MEDIUM -> Color.Yellow
+                TaskPriority.LOW -> Color.Green
+            }
+        )
+    }
+}
+
+@Composable
+fun PriorityMenu(
+    currentPriority: TaskPriority,
+    onPrioritySelected: (TaskPriority) -> Unit,
+    onDismiss: () -> Unit
+) {
+    DropdownMenu(
+        expanded = true,
+        onDismissRequest = onDismiss
+    ) {
+        TaskPriority.values().forEach { priority ->
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = priority.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = when (priority) {
+                            TaskPriority.HIGH -> Color.Red
+                            TaskPriority.MEDIUM -> Orange // Make sure you've defined this color
+                            TaskPriority.LOW -> Color.Green
+                        }
+                    )
+                },
+                onClick = {
+                    onPrioritySelected(priority)
+                    onDismiss()
+                },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .background(
+                                color = when (priority) {
+                                    TaskPriority.HIGH -> Color.Red
+                                    TaskPriority.MEDIUM -> Orange
+                                    TaskPriority.LOW -> Color.Green
+                                },
+                                shape = CircleShape
+                            )
+                    )
+                }
+            )
+        }
     }
 }
 
