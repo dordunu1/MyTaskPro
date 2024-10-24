@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import com.mytaskpro.data.TaskDao
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +27,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             when (intent.action) {
                 "com.mytaskpro.COMPLETE_TASK" -> {
                     Log.d("NotificationReceiver", "Attempting to complete task: $taskId")
-                    completeTask(taskId)
+                    completeTask(context, taskId)
                 }
                 "com.mytaskpro.SNOOZE_TASK" -> {
                     Log.d("NotificationReceiver", "Attempting to snooze task: $taskId")
@@ -41,12 +42,13 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun completeTask(taskId: Int) {
+    private fun completeTask(context: Context, taskId: Int) {
         Log.d("NotificationReceiver", "completeTask called for task: $taskId")
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 taskDao.markTaskAsCompleted(taskId, Date())
                 Log.d("NotificationReceiver", "Task $taskId marked as completed successfully")
+                cancelNotification(context, taskId)
             } catch (e: Exception) {
                 Log.e("NotificationReceiver", "Error completing task $taskId: ${e.message}", e)
             }
@@ -70,6 +72,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                 taskDao.updateTask(updatedTask)
                 Log.d("NotificationReceiver", "Task $taskId snoozed successfully")
+                cancelNotification(context, taskId)
 
                 // Notify the app to refresh UI and update widget
                 val refreshIntent = Intent("com.mytaskpro.REFRESH_TASKS")
@@ -77,6 +80,15 @@ class NotificationActionReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Log.e("NotificationReceiver", "Error snoozing task $taskId: ${e.message}", e)
             }
+        }
+    }
+
+    private fun cancelNotification(context: Context, taskId: Int) {
+        try {
+            NotificationManagerCompat.from(context).cancel(taskId)
+            Log.d("NotificationReceiver", "Notification canceled for task $taskId")
+        } catch (e: Exception) {
+            Log.e("NotificationReceiver", "Error canceling notification for task $taskId: ${e.message}", e)
         }
     }
 }
