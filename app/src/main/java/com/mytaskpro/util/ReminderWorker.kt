@@ -44,9 +44,7 @@ class ReminderWorker(
             applicationContext,
             taskId,
             notificationTitle,
-            "$notificationContent\n$taskDescription",
-            completeIntent,
-            snoozeIntent
+            "$notificationContent\n$taskDescription"
         )
 
         Log.d("ReminderWorker", "Notification shown for task $taskId")

@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.mytaskpro.NotificationActionReceiver
 import com.mytaskpro.R
 
 object NotificationHelper {
@@ -39,9 +40,7 @@ object NotificationHelper {
         context: Context,
         taskId: Int,
         title: String,
-        content: String,
-        completeIntent: Intent,
-        snoozeIntent: Intent
+        content: String
     ) {
         Log.d("NotificationHelper", "Attempting to show notification for task $taskId")
 
@@ -59,16 +58,24 @@ object NotificationHelper {
             }
         }
 
-        val completePendingIntent = PendingIntent.getActivity(
+        val completeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = "com.mytaskpro.COMPLETE_TASK"
+            putExtra("TASK_ID", taskId)
+        }
+        val completePendingIntent = PendingIntent.getBroadcast(
             context,
             taskId,
             completeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val snoozePendingIntent = PendingIntent.getActivity(
+        val snoozeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = "com.mytaskpro.SNOOZE_TASK"
+            putExtra("TASK_ID", taskId)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
-            taskId + 1, // Use a different request code to avoid overwriting
+            taskId + 1000, // Use a different request code to avoid overwriting
             snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

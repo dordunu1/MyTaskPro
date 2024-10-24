@@ -20,8 +20,14 @@ class MyTaskProApplication : Application(), Application.ActivityLifecycleCallbac
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    companion object {
+        lateinit var instance: MyTaskProApplication
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         FirebaseApp.initializeApp(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

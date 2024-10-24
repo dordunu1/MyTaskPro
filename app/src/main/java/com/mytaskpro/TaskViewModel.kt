@@ -940,6 +940,8 @@ class TaskViewModel @Inject constructor(
             scheduleNotifications(updatedTask)
             updateWidget()
 
+            refreshTasks()
+
             // Sync with Firebase
             val userId = firebaseAuth.currentUser?.uid
             if (userId != null) {
@@ -955,6 +957,14 @@ class TaskViewModel @Inject constructor(
             }
 
             Log.d("TaskViewModel", "Task snoozed: ${task.title}, New due date: $newDueDate")
+        }
+    }
+
+    private fun refreshTasks() {
+        viewModelScope.launch {
+            taskDao.getAllTasks().collect { tasks ->
+                _tasks.value = tasks
+            }
         }
     }
 

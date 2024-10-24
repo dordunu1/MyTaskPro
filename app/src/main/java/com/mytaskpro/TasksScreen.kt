@@ -489,7 +489,7 @@ fun PriorityIcon(priority: TaskPriority, onClick: () -> Unit) {
             tint = when (priority) {
                 TaskPriority.HIGH -> Color.Red
                 TaskPriority.MEDIUM -> Color.Yellow
-                TaskPriority.LOW -> Color.Green
+                TaskPriority.LOW -> Color.Blue
             }
         )
     }
@@ -514,7 +514,7 @@ fun PriorityMenu(
                         color = when (priority) {
                             TaskPriority.HIGH -> Color.Red
                             TaskPriority.MEDIUM -> Orange // Make sure you've defined this color
-                            TaskPriority.LOW -> Color.Green
+                            TaskPriority.LOW -> Color.Blue
                         }
                     )
                 },
@@ -530,7 +530,7 @@ fun PriorityMenu(
                                 color = when (priority) {
                                     TaskPriority.HIGH -> Color.Red
                                     TaskPriority.MEDIUM -> Orange
-                                    TaskPriority.LOW -> Color.Green
+                                    TaskPriority.LOW -> Color.Blue
                                 },
                                 shape = CircleShape
                             )

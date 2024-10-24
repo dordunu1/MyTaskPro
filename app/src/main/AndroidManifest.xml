@@ -61,6 +61,15 @@
                 android:resource="@xml/task_widget_info" />
         </receiver>
 
+        <!-- New BroadcastReceiver for notification actions -->
+        <receiver android:name=".NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mytaskpro.COMPLETE_TASK" />
+                <action android:name="com.mytaskpro.SNOOZE_TASK" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name="com.google.android.gms.auth.api.signin.internal.SignInHubActivity"
             android:excludeFromRecents="true"
