@@ -55,9 +55,6 @@ class SettingsViewModel @Inject constructor(
     private val _isStatusBarQuickAddEnabled = MutableStateFlow(false)
     val isStatusBarQuickAddEnabled: StateFlow<Boolean> = _isStatusBarQuickAddEnabled.asStateFlow()
 
-    private val _availableThemes =
-        MutableStateFlow(listOf("Default", "Light", "Dark", "Blue", "Green"))
-    val availableThemes = _availableThemes.asStateFlow()
 
     // Notification Settings
     private val _taskReminders = MutableStateFlow(true)

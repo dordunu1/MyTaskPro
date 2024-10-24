@@ -338,14 +338,14 @@ fun TaskItem(
                                 color = when (task.priority) {
                                     TaskPriority.HIGH -> Color.Red
                                     TaskPriority.MEDIUM -> Orange
-                                    TaskPriority.LOW -> Color.Green
+                                    TaskPriority.LOW -> Color.Black
                                 },
                                 modifier = Modifier
                                     .background(
                                         color = when (task.priority) {
                                             TaskPriority.HIGH -> Color.Red.copy(alpha = 0.1f)
                                             TaskPriority.MEDIUM -> Orange.copy(alpha = 0.1f)
-                                            TaskPriority.LOW -> Color.Green.copy(alpha = 0.1f)
+                                            TaskPriority.LOW -> Color.Black.copy(alpha = 0.1f)
                                         },
                                         shape = RoundedCornerShape(4.dp)
                                     )
@@ -489,7 +489,7 @@ fun PriorityIcon(priority: TaskPriority, onClick: () -> Unit) {
             tint = when (priority) {
                 TaskPriority.HIGH -> Color.Red
                 TaskPriority.MEDIUM -> Color.Yellow
-                TaskPriority.LOW -> Color.Blue
+                TaskPriority.LOW -> Color.Black
             }
         )
     }
@@ -514,7 +514,7 @@ fun PriorityMenu(
                         color = when (priority) {
                             TaskPriority.HIGH -> Color.Red
                             TaskPriority.MEDIUM -> Orange // Make sure you've defined this color
-                            TaskPriority.LOW -> Color.Blue
+                            TaskPriority.LOW -> Color.Black
                         }
                     )
                 },
@@ -530,7 +530,7 @@ fun PriorityMenu(
                                 color = when (priority) {
                                     TaskPriority.HIGH -> Color.Red
                                     TaskPriority.MEDIUM -> Orange
-                                    TaskPriority.LOW -> Color.Blue
+                                    TaskPriority.LOW -> Color.Black
                                 },
                                 shape = CircleShape
                             )
