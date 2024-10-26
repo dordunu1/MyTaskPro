@@ -1,5 +1,6 @@
 package com.mytaskpro
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -43,7 +44,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.google.api.services.calendar.CalendarScopes
 import com.google.android.gms.common.api.Scope
-
+import com.mytaskpro.billing.BillingManager
 
 
 @AndroidEntryPoint
@@ -53,6 +54,8 @@ class MainActivity : ComponentActivity() {
     private val aiRecommendationViewModel: AIRecommendationViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
     private val themeViewModel: ThemeViewModel by viewModels()
+    private val billingManager by lazy { BillingManager(this) }
+
 
     @Inject
     lateinit var statusBarNotificationManager: StatusBarNotificationManager
@@ -163,7 +166,8 @@ class MainActivity : ComponentActivity() {
                     taskViewModel = taskViewModel,
                     aiRecommendationViewModel = aiRecommendationViewModel,
                     themeViewModel = themeViewModel,
-                    settingsViewModel = settingsViewModel
+                    settingsViewModel = settingsViewModel,
+                    activity = this // Pass the activity here
                 )
             }
         }
@@ -200,7 +204,8 @@ class MainActivity : ComponentActivity() {
         themeViewModel: ThemeViewModel = viewModel(),
         taskViewModel: TaskViewModel = viewModel(),
         aiRecommendationViewModel: AIRecommendationViewModel = viewModel(),
-        settingsViewModel: SettingsViewModel = viewModel()
+        settingsViewModel: SettingsViewModel = viewModel(),
+        activity: Activity // Add this parameter
     ) {
         val currentTheme by themeViewModel.currentTheme.collectAsState()
         val isUserSignedIn by taskViewModel.isUserSignedIn.collectAsState()
@@ -228,13 +233,16 @@ class MainActivity : ComponentActivity() {
                     onSignOut = {
                         taskViewModel.signOut()
                         googleSignInClient.signOut().addOnCompleteListener {
-                            Toast.makeText(this@MainActivity, "Signed out", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Signed out", Toast.LENGTH_SHORT)
+                                .show()
                             Log.d("MainActivity", "User signed out, updating email to null")
-                            settingsViewModel.updateSignedInEmail(null)
+                            settingsViewModel.updateSignedInEmail(email = null)
                         }
-                    }
+                    },
+                    activity = this@MainActivity,
+                    billingManager = billingManager,
+                    onSettingsClick = { /* Implement if needed */ }
                 )
-
                 if (showCategorySelection) {
                     CategorySelectionDialog(
                         onDismiss = { taskViewModel.hideCategorySelectionDialog() },
@@ -271,7 +279,9 @@ class MainActivity : ComponentActivity() {
                                 )
                                 taskViewModel.hideAddTaskDialog()
                                 selectedCategory = null
-                            }
+                            },
+                            settingsViewModel = settingsViewModel,
+                            activity = this@MainActivity
                         )
                     }
                 }

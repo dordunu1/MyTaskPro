@@ -19,7 +19,7 @@ class BadgeManager @Inject constructor(
                 tasksCompleted >= 350 -> Badge.DIAMOND
                 tasksCompleted >= 200 -> Badge.GOLD
                 tasksCompleted >= 80 -> Badge.SILVER
-                tasksCompleted >= 30 -> Badge.BRONZE  // Changed from 30 to 2 for testing
+                tasksCompleted >= 30 -> Badge.BRONZE
                 else -> Badge.NONE
             }
             return if (newBadge.ordinal > currentBadge.ordinal) newBadge else currentBadge

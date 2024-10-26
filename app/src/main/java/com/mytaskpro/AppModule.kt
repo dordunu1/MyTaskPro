@@ -31,7 +31,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.work.WorkManager
-
+import com.mytaskpro.managers.AchievementBadgesManager
+import com.mytaskpro.managers.TaskSummaryGraphManager
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,7 +92,6 @@ object AppModule {
         return database.badgeDao()
     }
 
-
     @Provides
     @Singleton
     fun provideTaskCompletionBadgeEvaluator(): BadgeEvaluator {
@@ -109,11 +109,33 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideBadgeRepository(badgeDao: BadgeDao): BadgeRepository {
+        return BadgeRepository(badgeDao)
+    }
+
+    @Provides
+    @Singleton
     fun provideUserActionRepository(
         firestore: FirebaseFirestore,
         auth: FirebaseAuth
     ): UserActionRepository {
         return UserActionRepository(firestore, auth)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTaskSummaryGraphManager(dataStore: DataStore<Preferences>): TaskSummaryGraphManager {
+        return TaskSummaryGraphManager(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAchievementBadgesManager(
+        dataStore: DataStore<Preferences>,
+        badgeManager: BadgeManager,
+        badgeRepository: BadgeRepository
+    ): AchievementBadgesManager {
+        return AchievementBadgesManager(dataStore, badgeManager, badgeRepository)
     }
 
     @Provides

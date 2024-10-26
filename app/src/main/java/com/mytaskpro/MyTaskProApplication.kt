@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import timber.log.Timber
 
 @HiltAndroidApp
 class MyTaskProApplication : Application(), Application.ActivityLifecycleCallbacks {
@@ -29,6 +30,11 @@ class MyTaskProApplication : Application(), Application.ActivityLifecycleCallbac
         super.onCreate()
         instance = this
         FirebaseApp.initializeApp(this)
+
+        // Initialize Timber
+        if (BuildConfig.IS_DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannel()

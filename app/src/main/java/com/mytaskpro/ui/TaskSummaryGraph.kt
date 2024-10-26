@@ -40,8 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.mytaskpro.data.Task
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.style.TextAlign
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.TaskSummary
+import com.mytaskpro.managers.TaskSummaryGraphManager
 import com.mytaskpro.ui.components.AIRecommendationSection
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
@@ -54,80 +56,99 @@ import com.mytaskpro.viewmodel.TaskViewModel.UpcomingTask
 fun TaskSummaryGraph(
     viewModel: TaskViewModel,
     aiRecommendationViewModel: AIRecommendationViewModel,
+    taskSummaryGraphManager: TaskSummaryGraphManager,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onCloseClick: () -> Unit
 ) {
+    val isEnabled by taskSummaryGraphManager.isEnabled.collectAsState()
     val upcomingTasks by viewModel.upcomingTasks.collectAsState(initial = emptyMap())
 
     LaunchedEffect(Unit) {
         viewModel.refreshUpcomingTasks()
     }
 
-    var selectedTimeFrame by remember { mutableStateOf(TimeFrame.WEEKLY) }
+    if (isEnabled) {
+        var selectedTimeFrame by remember { mutableStateOf(TimeFrame.WEEKLY) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Task Summary",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                IconButton(onClick = onCloseClick) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close Task Summary"
+        LazyColumn(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Task Summary",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    IconButton(onClick = onCloseClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Task Summary"
+                        )
+                    }
                 }
             }
-        }
 
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-            TimeFrameSelector(
-                selectedTimeFrame = selectedTimeFrame,
-                onTimeFrameSelected = { selectedTimeFrame = it }
-            )
-        }
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                TimeFrameSelector(
+                    selectedTimeFrame = selectedTimeFrame,
+                    onTimeFrameSelected = { selectedTimeFrame = it }
+                )
+            }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            MainGraph(viewModel = viewModel, timeFrame = selectedTimeFrame)
-        }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                MainGraph(viewModel = viewModel, timeFrame = selectedTimeFrame)
+            }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            KeyMetricsDashboard(viewModel = viewModel)
-        }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                KeyMetricsDashboard(viewModel = viewModel)
+            }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            DetailedAnalytics(viewModel = viewModel)
-        }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                DetailedAnalytics(viewModel = viewModel)
+            }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                UpcomingTasksSection(upcomingTasks = upcomingTasks)
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    UpcomingTasksSection(upcomingTasks = upcomingTasks)
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                AIRecommendationSection(viewModel = aiRecommendationViewModel)
             }
         }
-
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            AIRecommendationSection(viewModel = aiRecommendationViewModel)
+    } else {
+        // Show a message when the Task Summary Graph is disabled
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Task Summary Graph is currently disabled. Enable it in settings to view your task analytics.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

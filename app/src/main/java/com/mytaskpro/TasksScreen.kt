@@ -2,6 +2,7 @@
 
 package com.mytaskpro.ui
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -47,6 +48,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import com.mytaskpro.SettingsViewModel
 
 
 fun formatDate(date: Date): String {
@@ -69,6 +71,8 @@ fun getColorForDueDate(dueDate: Date): Color {
 fun TasksScreen(
     viewModel: TaskViewModel,
     onTaskClick: (Int) -> Unit,
+    settingsViewModel: SettingsViewModel,
+    activity: Activity,
     onEditTask: (Int) -> Unit
 ) {
     val taskAdditionStatus by viewModel.taskAdditionStatus.collectAsState()
@@ -227,14 +231,17 @@ fun TasksScreen(
                         reminderTime = reminderTime,
                         notifyOnDueDate = notifyOnDueDate,
                         repetitiveSettings = repetitiveSettings,
-                        priority = priority // Add this line
+                        priority = priority
                     )
                     viewModel.hideAddTaskDialog()
                     selectedCategory = null
-                }
+                },
+                settingsViewModel = settingsViewModel,
+                activity = activity
             )
         }
     }
+
 
     LaunchedEffect(editingTask) {
         editingTask?.let { task ->

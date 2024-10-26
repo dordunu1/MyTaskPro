@@ -31,6 +31,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
+import com.mytaskpro.SettingsViewModel
 import java.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,7 +39,9 @@ import java.time.Instant
 fun AddTaskDialog(
     category: CategoryType,
     onDismiss: () -> Unit,
-    onTaskAdded: (String, String, Date, Date?, Boolean, RepetitiveTaskSettings?, TaskPriority) -> Unit
+    onTaskAdded: (String, String, Date, Date?, Boolean, RepetitiveTaskSettings?, TaskPriority) -> Unit,
+    settingsViewModel: SettingsViewModel,
+    activity: android.app.Activity
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -57,6 +60,9 @@ fun AddTaskDialog(
     var showRepetitiveTaskDialog by remember { mutableStateOf(false) }
     var showPriorityDropdown by remember { mutableStateOf(false) }
     var repetitiveTaskSettings by remember { mutableStateOf<RepetitiveTaskSettings?>(null) }
+    var showPremiumFeatureDialog by remember { mutableStateOf(false) }
+
+    val isPremium by settingsViewModel.isPremium.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -165,7 +171,13 @@ fun AddTaskDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 Box {
                     Button(
-                        onClick = { showPriorityDropdown = true },
+                        onClick = {
+                            if (isPremium) {
+                                showPriorityDropdown = true
+                            } else {
+                                showPremiumFeatureDialog = true
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Priority: $priority")
@@ -214,6 +226,7 @@ fun AddTaskDialog(
         }
     )
 
+
     if (showDueDatePicker) {
         MyDatePickerDialog(
             onDismissRequest = { showDueDatePicker = false },
@@ -258,7 +271,50 @@ fun AddTaskDialog(
         )
     }
 
-    if (showRepetitiveTaskDialog) {
+    if (showPremiumFeatureDialog) {
+        PremiumFeatureDialog(
+            feature = "Task Priority",
+            description = "Prioritize your tasks to focus on what's most important.",
+            onUpgrade = { settingsViewModel.upgradeToPremium(activity) },
+            onDismiss = { showPremiumFeatureDialog = false }
+        )
+    }
+
+    @Composable
+    fun PremiumFeatureDialog(
+        feature: String,
+        description: String,
+        onUpgrade: () -> Unit,
+        onDismiss: () -> Unit
+    ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Upgrade to Premium") },
+            text = {
+                Column {
+                    Text("$feature is a premium feature.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(description)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    onUpgrade()
+                    onDismiss()
+                }) {
+                    Text("Upgrade Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Maybe Later")
+                }
+            }
+        )
+    }
+
+
+if (showRepetitiveTaskDialog) {
         RepetitiveTaskDialog(
             isVisible = showRepetitiveTaskDialog,
             onDismiss = { showRepetitiveTaskDialog = false },

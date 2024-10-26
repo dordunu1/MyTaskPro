@@ -1,36 +1,43 @@
 package com.mytaskpro
 
-import android.util.Log
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import javax.inject.Inject
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.android.billingclient.api.ProductDetails
+import com.mytaskpro.billing.BillingManager
 import com.mytaskpro.data.TaskPriority
+import com.mytaskpro.managers.AchievementBadgesManager
+import com.mytaskpro.managers.TaskSummaryGraphManager
+import com.mytaskpro.services.GoogleCalendarSyncService
 import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.mytaskpro.services.GoogleCalendarSyncService
-
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     private val statusBarNotificationManager: StatusBarNotificationManager,
-    private val googleCalendarSyncService: GoogleCalendarSyncService
+    private val googleCalendarSyncService: GoogleCalendarSyncService,
+    private val billingManager: BillingManager,
+    val taskSummaryGraphManager: TaskSummaryGraphManager,
+    private val achievementBadgesManager: AchievementBadgesManager
 ) : ViewModel() {
 
     // General Settings
@@ -55,11 +62,9 @@ class SettingsViewModel @Inject constructor(
     private val _isStatusBarQuickAddEnabled = MutableStateFlow(false)
     val isStatusBarQuickAddEnabled: StateFlow<Boolean> = _isStatusBarQuickAddEnabled.asStateFlow()
 
-
     // Notification Settings
     private val _taskReminders = MutableStateFlow(true)
     val taskReminders = _taskReminders.asStateFlow()
-
 
     // Sync Settings
     private val _isGoogleSyncEnabled = MutableStateFlow(false)
@@ -81,6 +86,15 @@ class SettingsViewModel @Inject constructor(
     private val _isPremium = MutableStateFlow(false)
     val isPremium = _isPremium.asStateFlow()
 
+    private val _isTaskSummaryGraphEnabled = MutableStateFlow(false)
+    val isTaskSummaryGraphEnabled: StateFlow<Boolean> = _isTaskSummaryGraphEnabled.asStateFlow()
+
+    private val _isAchievementBadgesEnabled = MutableStateFlow(false)
+    val isAchievementBadgesEnabled: StateFlow<Boolean> = _isAchievementBadgesEnabled.asStateFlow()
+
+    private val _premiumProductDetails = MutableStateFlow<ProductDetails?>(null)
+    val premiumProductDetails: StateFlow<ProductDetails?> = _premiumProductDetails.asStateFlow()
+
     // Widget Customization
     private val _widgetTheme = MutableStateFlow("Default")
     val widgetTheme = _widgetTheme.asStateFlow()
@@ -101,14 +115,35 @@ class SettingsViewModel @Inject constructor(
             dataStore.data.collect { preferences ->
                 _isDarkMode.value = preferences[PreferencesKeys.DARK_MODE] ?: false
                 _is24HourFormat.value = preferences[PreferencesKeys.HOUR_FORMAT] ?: false
-                _isStatusBarQuickAddEnabled.value =
-                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] ?: false
-                _isTaskPriorityEnabled.value =
-                    preferences[PreferencesKeys.IS_TASK_PRIORITY_ENABLED] ?: false
+                _isStatusBarQuickAddEnabled.value = preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] ?: false
+                _isTaskSummaryGraphEnabled.value = preferences[PreferencesKeys.TASK_SUMMARY_GRAPH_ENABLED] ?: false
+                _isAchievementBadgesEnabled.value = preferences[PreferencesKeys.ACHIEVEMENT_BADGES_ENABLED] ?: false
+                _isTaskPriorityEnabled.value = preferences[PreferencesKeys.IS_TASK_PRIORITY_ENABLED] ?: false
                 _defaultTaskPriority.value = TaskPriority.valueOf(
                     preferences[PreferencesKeys.DEFAULT_TASK_PRIORITY] ?: TaskPriority.MEDIUM.name
                 )
+                _isPremium.value = preferences[PreferencesKeys.IS_PREMIUM] ?: false
                 updateStatusBarNotification()
+            }
+        }
+
+        viewModelScope.launch {
+            billingManager.purchaseFlow.collect { purchaseState ->
+                when (purchaseState) {
+                    is BillingManager.PurchaseState.Purchased -> {
+                        _isPremium.value = true
+                        dataStore.edit { preferences ->
+                            preferences[PreferencesKeys.IS_PREMIUM] = true
+                        }
+                    }
+                    else -> {} // Handle other states if needed
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            billingManager.productDetailsFlow.collect { productDetails ->
+                _premiumProductDetails.value = productDetails.firstOrNull()
             }
         }
     }
@@ -132,6 +167,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun toggleTaskSummaryGraph() {
+        viewModelScope.launch {
+            val newValue = !_isTaskSummaryGraphEnabled.value
+            _isTaskSummaryGraphEnabled.value = newValue
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.TASK_SUMMARY_GRAPH_ENABLED] = newValue
+            }
+            taskSummaryGraphManager.setEnabled(newValue)
+        }
+    }
+
+    fun toggleAchievementBadges() {
+        viewModelScope.launch {
+            val newValue = !_isAchievementBadgesEnabled.value
+            _isAchievementBadgesEnabled.value = newValue
+            dataStore.edit { preferences ->
+                preferences[PreferencesKeys.ACHIEVEMENT_BADGES_ENABLED] = newValue
+            }
+            achievementBadgesManager.setEnabled(newValue)
+        }
+    }
+
     fun toggleGoogleCalendarSync(accountName: String) {
         viewModelScope.launch {
             val newValue = !_isGoogleCalendarSyncEnabled.value
@@ -150,11 +207,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    companion object {
-        val GOOGLE_CALENDAR_SYNC_KEY = booleanPreferencesKey("google_calendar_sync")
-    }
-
-    // Functions to update settings
     fun toggleDarkMode() {
         viewModelScope.launch(Dispatchers.Main) {
             _isDarkMode.value = !_isDarkMode.value
@@ -195,16 +247,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-
     fun toggleGoogleSync() {
         viewModelScope.launch(Dispatchers.Main) {
             _isGoogleSyncEnabled.value = !_isGoogleSyncEnabled.value
         }
     }
 
-    fun upgradeToPremium() {
-        viewModelScope.launch(Dispatchers.Main) {
-            _isPremium.value = true
+    fun upgradeToPremium(activity: Activity) {
+        viewModelScope.launch {
+            val productDetails = _premiumProductDetails.value
+            if (productDetails != null) {
+                billingManager.launchBillingFlow(activity, productDetails)
+            } else {
+                Log.e("SettingsViewModel", "Product details not available")
+                // Handle error (e.g., show a toast or update UI)
+            }
         }
     }
 
@@ -219,8 +276,6 @@ class SettingsViewModel @Inject constructor(
             _widgetTaskCount.value = count
         }
     }
-
-    enum class SyncStatus { Idle, Syncing, Success, Error }
 
     fun setUserEmail(email: String?) {
         viewModelScope.launch(Dispatchers.Main) {
@@ -297,8 +352,7 @@ class SettingsViewModel @Inject constructor(
             try {
                 statusBarNotificationManager.updateQuickAddNotification(_isStatusBarQuickAddEnabled.value)
                 dataStore.edit { preferences ->
-                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] =
-                        _isStatusBarQuickAddEnabled.value
+                    preferences[PreferencesKeys.STATUS_BAR_QUICK_ADD] = _isStatusBarQuickAddEnabled.value
                 }
                 Log.d(
                     "SettingsViewModel",
@@ -325,11 +379,20 @@ class SettingsViewModel @Inject constructor(
         // This function will be implemented to update app locale
     }
 
+    enum class SyncStatus { Idle, Syncing, Success, Error }
+
+    companion object {
+        val GOOGLE_CALENDAR_SYNC_KEY = booleanPreferencesKey("google_calendar_sync")
+    }
+
     private object PreferencesKeys {
         val DARK_MODE = booleanPreferencesKey("dark_mode")
         val HOUR_FORMAT = booleanPreferencesKey("hour_format")
         val STATUS_BAR_QUICK_ADD = booleanPreferencesKey("status_bar_quick_add")
+        val TASK_SUMMARY_GRAPH_ENABLED = booleanPreferencesKey("task_summary_graph_enabled")
+        val ACHIEVEMENT_BADGES_ENABLED = booleanPreferencesKey("achievement_badges_enabled")
         val IS_TASK_PRIORITY_ENABLED = booleanPreferencesKey("is_task_priority_enabled")
         val DEFAULT_TASK_PRIORITY = stringPreferencesKey("default_task_priority")
+        val IS_PREMIUM = booleanPreferencesKey("is_premium")
     }
 }

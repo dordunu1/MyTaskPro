@@ -1,7 +1,9 @@
 package com.mytaskpro.ui
 
+import android.app.Activity
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,6 +13,7 @@ import com.mytaskpro.ui.MainScreen
 import com.mytaskpro.ui.TaskDetailScreen
 import com.mytaskpro.SettingsScreen
 import com.mytaskpro.SettingsViewModel
+import com.mytaskpro.billing.BillingManager
 import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.mytaskpro.viewmodel.TaskViewModel
 import com.mytaskpro.viewmodel.ThemeViewModel
@@ -18,31 +21,38 @@ import com.mytaskpro.viewmodel.ThemeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(
+    navController: NavHostController = rememberNavController(),
     taskViewModel: TaskViewModel,
     themeViewModel: ThemeViewModel,
     settingsViewModel: SettingsViewModel,
-    aiRecommendationViewModel: AIRecommendationViewModel, // Add this line
     isUserSignedIn: Boolean,
+    onSettingsClick: () -> Unit,
     onGoogleSignIn: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    aiRecommendationViewModel: AIRecommendationViewModel,
+    billingManager: BillingManager?,
+    activity: Activity
 ) {
-    val navController = rememberNavController()
-
     NavHost(navController = navController, startDestination = "main") {
         composable(route = "main") {
-            MainScreen(
-                navController = navController,
-                taskViewModel = taskViewModel,
-                themeViewModel = themeViewModel,
-                isUserSignedIn = isUserSignedIn,
-                onSettingsClick = { navController.navigate("settings") },
-                onTaskClick = { taskId ->
-                    navController.navigate("taskDetail/$taskId")
-                },
-                aiRecommendationViewModel = aiRecommendationViewModel  // Add this line
-            )
+            if (billingManager != null) {
+                MainScreen(
+                    navController = navController,
+                    taskViewModel = taskViewModel,
+                    themeViewModel = themeViewModel,
+                    isUserSignedIn = isUserSignedIn,
+                    onSettingsClick = { navController.navigate("settings") },
+                    onTaskClick = { taskId ->
+                        navController.navigate("taskDetail/$taskId")
+                    },
+                    aiRecommendationViewModel = aiRecommendationViewModel,
+                    billingManager = billingManager,
+                    settingsViewModel = settingsViewModel, // Add this line
+                    activity = activity // Add this line
+                )
+            }
         }
-        composable("settings") {
+        composable(route = "settings") {
             SettingsScreen(
                 taskViewModel = taskViewModel,
                 themeViewModel = themeViewModel,
@@ -50,7 +60,8 @@ fun AppNavigation(
                 onBackClick = { navController.popBackStack() },
                 isUserSignedIn = isUserSignedIn,
                 onGoogleSignIn = onGoogleSignIn,
-                onSignOut = onSignOut
+                onSignOut = onSignOut,
+                activity = activity // Pass the activity here
             )
         }
         composable(

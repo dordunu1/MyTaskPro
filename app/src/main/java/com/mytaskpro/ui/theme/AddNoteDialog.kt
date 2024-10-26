@@ -47,6 +47,14 @@ import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.Note
 import com.mytaskpro.util.ImageUtils
 import java.io.File
+import android.Manifest
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.shouldShowRationale
+
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -389,9 +397,13 @@ fun CategoryButton(category: CategoryType, onCategoryChanged: (CategoryType) -> 
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ImagePicker(onImagePicked: (Uri?) -> Unit, onPdfPicked: (Uri?) -> Unit) {
     var showImagePickerOptions by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -445,10 +457,20 @@ fun ImagePicker(onImagePicked: (Uri?) -> Unit, onPdfPicked: (Uri?) -> Unit) {
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = {
-                        val uri = ImageUtils.createImageUri(context)
-                        imageUri.value = uri
-                        Log.d("ImagePicker", "Launching camera with uri: $uri")
-                        cameraLauncher.launch(uri)
+                        when {
+                            cameraPermissionState.status.isGranted -> {
+                                val uri = ImageUtils.createImageUri(context)
+                                imageUri.value = uri
+                                Log.d("ImagePicker", "Launching camera with uri: $uri")
+                                cameraLauncher.launch(uri)
+                            }
+                            cameraPermissionState.status.shouldShowRationale -> {
+                                showPermissionDialog = true
+                            }
+                            else -> {
+                                cameraPermissionState.launchPermissionRequest()
+                            }
+                        }
                     }) {
                         Text("Take Photo")
                     }
@@ -464,6 +486,27 @@ fun ImagePicker(onImagePicked: (Uri?) -> Unit, onPdfPicked: (Uri?) -> Unit) {
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showImagePickerOptions = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("Camera Permission Required") },
+            text = { Text("This app needs access to your camera to take photos. Please grant the permission.") },
+            confirmButton = {
+                Button(onClick = {
+                    showPermissionDialog = false
+                    cameraPermissionState.launchPermissionRequest()
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showPermissionDialog = false }) {
                     Text("Cancel")
                 }
             }

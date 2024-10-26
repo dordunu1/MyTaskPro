@@ -15,8 +15,8 @@ android {
         applicationId = "com.mytaskpro"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 7
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -24,13 +24,29 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("\"E:\\2ND BACKUP\\my-release-key.jks\"")
+            storePassword = "//Diccy@19962708.#@!"
+            keyAlias = "MyTaskPro"
+            keyPassword = "//Diccy@19962708.#@!"
+        }
+    }
+
     buildTypes {
+        debug {
+            buildConfigField("Boolean", "IS_DEBUG", "true")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
+            // Add this line for FULL debug symbol level
+            ndk.debugSymbolLevel = "FULL"
+            buildConfigField("Boolean", "IS_DEBUG", "false")
         }
     }
     compileOptions {
@@ -43,6 +59,8 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
+
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8" // Updated to match Kotlin 1.9.22
@@ -90,6 +108,11 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.1.2")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
     implementation("androidx.compose.material3:material3-window-size-class")
+    implementation ("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
+    implementation ("com.google.android.recaptcha:recaptcha:18.6.1")
+    implementation("com.android.billingclient:billing-ktx:6.1.0")
+    implementation("com.jakewharton.timber:timber:5.0.1")
+
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")

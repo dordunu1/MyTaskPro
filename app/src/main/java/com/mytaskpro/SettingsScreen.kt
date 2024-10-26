@@ -1,5 +1,6 @@
 package com.mytaskpro
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.util.Log
 import androidx.compose.foundation.background
@@ -45,11 +46,9 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     isUserSignedIn: Boolean,
     onGoogleSignIn: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    activity: Activity // Add this parameter
 ) {
-    val userEmail by settingsViewModel.userEmail.collectAsState()
-    Log.d("SettingsScreen", "Current user email: $userEmail")
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -69,27 +68,33 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            GeneralSettingsSection(settingsViewModel, themeViewModel)
+            GeneralSettingsSection(settingsViewModel, themeViewModel, activity)
             Spacer(modifier = Modifier.height(16.dp))
             NotificationSettingsSection(settingsViewModel)
             Spacer(modifier = Modifier.height(16.dp))
-            SyncSection(taskViewModel, settingsViewModel, isUserSignedIn, onGoogleSignIn, onSignOut)
+            SyncSection(taskViewModel, settingsViewModel, isUserSignedIn, onGoogleSignIn, onSignOut, activity = activity)
             Spacer(modifier = Modifier.height(16.dp))
-            TaskPrioritySection(settingsViewModel) // New section
+            TaskPrioritySection(settingsViewModel, activity)
             Spacer(modifier = Modifier.height(16.dp))
-            PremiumSubscriptionSection(settingsViewModel)
+            PremiumFeaturesSection(settingsViewModel, activity)
             Spacer(modifier = Modifier.height(16.dp))
-            FeedbackSection(viewModel = settingsViewModel)
+            PremiumSubscriptionSection(settingsViewModel, activity)
+            Spacer(modifier = Modifier.height(16.dp))
+            FeedbackSection(viewModel = settingsViewModel, activity = activity)
             Spacer(modifier = Modifier.height(16.dp))
             AboutSection(settingsViewModel)
         }
     }
 }
-
-
 @Composable
-fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeViewModel) {
+fun GeneralSettingsSection(
+    viewModel: SettingsViewModel,
+    themeViewModel: ThemeViewModel,
+    activity: Activity
+) {
+    val isPremium by viewModel.isPremium.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showPremiumThemeDialog by remember { mutableStateOf(false) }
 
     SettingsSection(title = "General") {
         SwitchSetting(
@@ -97,29 +102,35 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
             viewModel.isDarkMode.collectAsState().value
         ) { isChecked ->
             viewModel.toggleDarkMode()
-            // Update the theme in ThemeViewModel
             themeViewModel.setTheme(if (isChecked) AppTheme.Dark else AppTheme.Default)
         }
         SwitchSetting(
             "24-Hour Format",
             viewModel.is24HourFormat.collectAsState().value
         ) { viewModel.toggle24HourFormat() }
-        ClickableSetting("Theme") {
-            showThemeDialog = true
+
+        if (isPremium) {
+            ClickableSetting("Theme") {
+                showThemeDialog = true
+            }
+        } else {
+            ClickableSetting("Theme (Premium)") {
+                showPremiumThemeDialog = true
+            }
         }
+
         SwitchSetting(
             "Status Bar Quick Add",
             viewModel.isStatusBarQuickAddEnabled.collectAsState().value
         ) { viewModel.toggleStatusBarQuickAdd() }
     }
 
-    if (showThemeDialog) {
+    if (showThemeDialog && isPremium) {
         themeViewModel.currentTheme.collectAsState().value?.let {
             ThemeSelectionDialog(
                 currentTheme = it,
                 onThemeSelected = { theme ->
                     themeViewModel.setTheme(theme)
-                    // Update isDarkMode in SettingsViewModel based on the selected theme
                     viewModel.setDarkMode(theme == AppTheme.Dark)
                     showThemeDialog = false
                 },
@@ -127,6 +138,48 @@ fun GeneralSettingsSection(viewModel: SettingsViewModel, themeViewModel: ThemeVi
             )
         }
     }
+
+    if (showPremiumThemeDialog && !isPremium) {
+        PremiumFeatureDialog(
+            feature = "Custom Themes",
+            description = "Unlock a variety of beautiful themes to personalize your app experience.",
+            onUpgrade = { viewModel.upgradeToPremium(activity) },
+            onDismiss = { showPremiumThemeDialog = false }
+        )
+    }
+}
+
+@Composable
+fun PremiumFeatureDialog(
+    feature: String,
+    description: String,
+    onUpgrade: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Upgrade to Premium") },
+        text = {
+            Column {
+                Text("$feature is a premium feature.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(description)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onUpgrade()
+                onDismiss()
+            }) {
+                Text("Upgrade Now")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Maybe Later")
+            }
+        }
+    )
 }
 
 @Composable
@@ -244,7 +297,8 @@ fun SyncSection(
     isUserSignedIn: Boolean,
     onGoogleSignIn: () -> Unit,
     onSignOut: () -> Unit,
-    showDebugButtons: Boolean = false
+    showDebugButtons: Boolean = false,
+    activity: Activity
 ) {
     val coroutineScope = rememberCoroutineScope()
     val syncStatus by rememberUpdatedState(settingsViewModel.syncStatus.collectAsState().value)
@@ -253,8 +307,10 @@ fun SyncSection(
     val isGoogleCalendarSyncEnabled by rememberUpdatedState(settingsViewModel.isGoogleCalendarSyncEnabled.collectAsState().value)
     val isSyncing by rememberUpdatedState(settingsViewModel.isSyncing.collectAsState().value)
     val userEmail by settingsViewModel.userEmail.collectAsState()
+    val isPremium by settingsViewModel.isPremium.collectAsState()
 
     var forceUpdate by remember { mutableStateOf(0) }
+    var showPremiumDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(syncStatus, lastSyncTime, isGoogleSyncEnabled, isGoogleCalendarSyncEnabled, isSyncing, forceUpdate) {
         Log.d("SyncSection", "Current sync status: $syncStatus")
@@ -277,76 +333,33 @@ fun SyncSection(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
-                    SwitchSetting("Google Sync", isGoogleSyncEnabled) { settingsViewModel.toggleGoogleSync() }
-                    SwitchSetting("Google Calendar Sync", isGoogleCalendarSyncEnabled) {
-                        settingsViewModel.toggleGoogleCalendarSync(userEmail ?: "")
-                    }
-                    if (isGoogleSyncEnabled) {
-                        Text(
-                            text = "Last synced: ${lastSyncTime ?: "Never"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                        if (isSyncing) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Syncing...", style = MaterialTheme.typography.bodySmall)
-                            }
-                        } else {
-                            when (syncStatus) {
-                                SettingsViewModel.SyncStatus.Success -> {
-                                    Text(
-                                        "Sync completed successfully",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                    LaunchedEffect(Unit) {
-                                        delay(3000)
-                                        settingsViewModel.resetSyncStatus()
+                    if (isPremium) {
+                        SwitchSetting("Google Sync", isGoogleSyncEnabled) { settingsViewModel.toggleGoogleSync() }
+                        SwitchSetting("Google Calendar Sync", isGoogleCalendarSyncEnabled) {
+                            settingsViewModel.toggleGoogleCalendarSync(userEmail ?: "")
+                        }
+                        if (isGoogleSyncEnabled) {
+                            SyncStatusSection(
+                                syncStatus = syncStatus,
+                                lastSyncTime = lastSyncTime,
+                                isSyncing = isSyncing,
+                                onSyncNow = {
+                                    coroutineScope.launch {
+                                        settingsViewModel.startSync()
+                                        taskViewModel.syncTasksWithFirebase()
+                                        delay(1000)
+                                        settingsViewModel.endSync(true)
                                     }
-                                }
-                                SettingsViewModel.SyncStatus.Error -> {
-                                    Text(
-                                        "Sync failed. Tap to retry.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                coroutineScope.launch {
-                                                    settingsViewModel.startSync()
-                                                    taskViewModel.syncTasksWithFirebase()
-                                                    delay(1000)
-                                                    settingsViewModel.endSync(true)
-                                                }
-                                            }
-                                            .padding(vertical = 8.dp)
-                                    )
-                                }
-                                SettingsViewModel.SyncStatus.Idle -> {
-                                    TextButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                settingsViewModel.startSync()
-                                                taskViewModel.syncTasksWithFirebase()
-                                                delay(1000)
-                                                settingsViewModel.endSync(true)
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                                    ) {
-                                        Text("Sync Now")
-                                    }
-                                }
-                                SettingsViewModel.SyncStatus.Syncing -> {
-                                    // This case is handled by the isSyncing check above
-                                }
-                            }
+                                },
+                                onResetSyncStatus = { settingsViewModel.resetSyncStatus() }
+                            )
+                        }
+                    } else {
+                        PremiumFeatureTeaser("Google Sync") {
+                            showPremiumDialog = true
+                        }
+                        PremiumFeatureTeaser("Google Calendar Sync") {
+                            showPremiumDialog = true
                         }
                     }
                     TextButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -359,59 +372,272 @@ fun SyncSection(
                 }
 
                 if (showDebugButtons) {
-                    TextButton(
-                        onClick = {
+                    DebugButtons(
+                        onForceRefresh = {
                             forceUpdate++
                             settingsViewModel.triggerForceRefresh()
                         },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    ) {
-                        Text("Force UI Refresh")
-                    }
-                    TextButton(
-                        onClick = { settingsViewModel.startSync() },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    ) {
-                        Text("Debug: Start Sync")
-                    }
-                    TextButton(
-                        onClick = { settingsViewModel.endSync(true) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    ) {
-                        Text("Debug: End Sync (Success)")
-                    }
-                    TextButton(
-                        onClick = { settingsViewModel.endSync(false) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    ) {
-                        Text("Debug: End Sync (Error)")
-                    }
+                        onStartSync = { settingsViewModel.startSync() },
+                        onEndSyncSuccess = { settingsViewModel.endSync(true) },
+                        onEndSyncError = { settingsViewModel.endSync(false) }
+                    )
                 }
+            }
+        }
+    }
+
+    if (showPremiumDialog) {
+        PremiumFeatureDialog(
+            feature = "Google Sync and Calendar Sync",
+            description = "Sync your tasks across devices and integrate with Google Calendar.",
+            onUpgrade = { settingsViewModel.upgradeToPremium(activity) },
+            onDismiss = { showPremiumDialog = false }
+        )
+    }
+}
+
+@Composable
+fun SyncStatusSection(
+    syncStatus: SettingsViewModel.SyncStatus,
+    lastSyncTime: String?,
+    isSyncing: Boolean,
+    onSyncNow: () -> Unit,
+    onResetSyncStatus: () -> Unit
+) {
+    Text(
+        text = "Last synced: ${lastSyncTime ?: "Never"}",
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+    if (isSyncing) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Syncing...", style = MaterialTheme.typography.bodySmall)
+        }
+    } else {
+        when (syncStatus) {
+            SettingsViewModel.SyncStatus.Success -> {
+                Text(
+                    "Sync completed successfully",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                LaunchedEffect(Unit) {
+                    delay(3000)
+                    onResetSyncStatus()
+                }
+            }
+            SettingsViewModel.SyncStatus.Error -> {
+                Text(
+                    "Sync failed. Tap to retry.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSyncNow() }
+                        .padding(vertical = 8.dp)
+                )
+            }
+            SettingsViewModel.SyncStatus.Idle -> {
+                TextButton(
+                    onClick = onSyncNow,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                ) {
+                    Text("Sync Now")
+                }
+            }
+            SettingsViewModel.SyncStatus.Syncing -> {
+                // This case is handled by the isSyncing check above
             }
         }
     }
 }
 
 @Composable
-fun TaskPrioritySection(viewModel: SettingsViewModel) {
-    SettingsSection(title = "Task Priority") {
-        SwitchSetting(
-            "Enable Task Priorities",
-            viewModel.isTaskPriorityEnabled.collectAsState().value
-        ) { viewModel.toggleTaskPriority() }
-
-        if (viewModel.isTaskPriorityEnabled.collectAsState().value) {
-            DropdownSetting(
-                "Default Priority",
-                viewModel.defaultTaskPriority.collectAsState().value.name,
-                TaskPriority.values().map { it.name }
-            ) { viewModel.setDefaultTaskPriority(TaskPriority.valueOf(it)) }
+fun DebugButtons(
+    onForceRefresh: () -> Unit,
+    onStartSync: () -> Unit,
+    onEndSyncSuccess: () -> Unit,
+    onEndSyncError: () -> Unit
+) {
+    Column {
+        TextButton(
+            onClick = onForceRefresh,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Text("Force UI Refresh")
+        }
+        TextButton(
+            onClick = onStartSync,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Text("Debug: Start Sync")
+        }
+        TextButton(
+            onClick = onEndSyncSuccess,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Text("Debug: End Sync (Success)")
+        }
+        TextButton(
+            onClick = onEndSyncError,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Text("Debug: End Sync (Error)")
         }
     }
 }
 
 @Composable
-fun PremiumSubscriptionSection(viewModel: SettingsViewModel) {
+fun TaskPrioritySection(viewModel: SettingsViewModel, activity: Activity) {
+    val isPremium by viewModel.isPremium.collectAsState()
+    var showPremiumDialog by remember { mutableStateOf(false) }
+
+    SettingsSection(title = "Task Priority") {
+        if (isPremium) {
+            SwitchSetting(
+                "Enable Task Priorities",
+                viewModel.isTaskPriorityEnabled.collectAsState().value
+            ) { viewModel.toggleTaskPriority() }
+
+            if (viewModel.isTaskPriorityEnabled.collectAsState().value) {
+                DropdownSetting(
+                    "Default Priority",
+                    viewModel.defaultTaskPriority.collectAsState().value.name,
+                    TaskPriority.values().map { it.name }
+                ) { viewModel.setDefaultTaskPriority(TaskPriority.valueOf(it)) }
+            }
+        } else {
+            PremiumFeatureTeaser("Task Priorities") {
+                showPremiumDialog = true
+            }
+        }
+    }
+
+    if (showPremiumDialog) {
+        PremiumFeatureDialog(
+            feature = "Task Priorities",
+            description = "Organize your tasks with customizable priority levels to focus on what matters most.",
+            onUpgrade = { viewModel.upgradeToPremium(activity) },
+            onDismiss = { showPremiumDialog = false }
+        )
+    }
+}
+
+@Composable
+fun PremiumFeaturesSection(viewModel: SettingsViewModel, activity: Activity) {
+    val isPremium by viewModel.isPremium.collectAsState()
+    var showTaskSummaryGraphDialog by remember { mutableStateOf(false) }
+    var showAchievementBadgesDialog by remember { mutableStateOf(false) }
+
+    SettingsSection(title = "Premium Features") {
+        if (isPremium) {
+            TaskSummaryGraphSetting(viewModel)
+            AchievementBadgesSetting(viewModel)
+        } else {
+            PremiumFeatureTeaser("Task Summary Graph") {
+                showTaskSummaryGraphDialog = true
+            }
+            PremiumFeatureTeaser("Achievement Badges") {
+                showAchievementBadgesDialog = true
+            }
+        }
+    }
+
+    if (showTaskSummaryGraphDialog) {
+        PremiumFeatureDialog(
+            feature = "Task Summary Graph",
+            description = "Visualize your task completion trends and productivity patterns with interactive graphs.",
+            onUpgrade = { viewModel.upgradeToPremium(activity) },
+            onDismiss = { showTaskSummaryGraphDialog = false }
+        )
+    }
+
+    if (showAchievementBadgesDialog) {
+        PremiumFeatureDialog(
+            feature = "Achievement Badges",
+            description = "Earn badges for completing tasks and reaching milestones to stay motivated.",
+            onUpgrade = { viewModel.upgradeToPremium(activity) },
+            onDismiss = { showAchievementBadgesDialog = false }
+        )
+    }
+}
+
+@Composable
+fun TaskSummaryGraphSetting(viewModel: SettingsViewModel) {
+    val isTaskSummaryGraphEnabled by viewModel.isTaskSummaryGraphEnabled.collectAsState()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SwitchSetting(
+            title = "Enable Task Summary Graph",
+            checked = isTaskSummaryGraphEnabled,
+            onCheckedChange = { viewModel.toggleTaskSummaryGraph() }
+        )
+        if (isTaskSummaryGraphEnabled) {
+            Text(
+                text = "Task summary graph is enabled. You can view it on the dashboard.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun AchievementBadgesSetting(viewModel: SettingsViewModel) {
+    val isAchievementBadgesEnabled by viewModel.isAchievementBadgesEnabled.collectAsState()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SwitchSetting(
+            title = "Enable Achievement Badges",
+            checked = isAchievementBadgesEnabled,
+            onCheckedChange = { viewModel.toggleAchievementBadges() }
+        )
+        if (isAchievementBadgesEnabled) {
+            Text(
+                text = "Achievement badges are enabled. Complete tasks to earn badges!",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun PremiumFeatureTeaser(feature: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lock,
+            contentDescription = "Premium Feature",
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("$feature (Premium)", style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = "Learn More",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun PremiumSubscriptionSection(viewModel: SettingsViewModel, activity: Activity) {
+    val isPremium by viewModel.isPremium.collectAsState()
+    val context = LocalContext.current
+
     SettingsSection(title = "Premium Subscription") {
         Row(
             modifier = Modifier
@@ -428,36 +654,42 @@ fun PremiumSubscriptionSection(viewModel: SettingsViewModel) {
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
-                    text = "Upgrade to Premium",
+                    text = if (isPremium) "Premium Member" else "Upgrade to Premium",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Unlock advanced features and sync across devices",
+                    text = if (isPremium) "Enjoy all premium features" else "Unlock advanced features and sync across devices",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-        Button(
-            onClick = { /* Implement subscription logic */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            Text("Subscribe Now")
+        if (!isPremium) {
+            Button(
+                onClick = {
+                    viewModel.upgradeToPremium(context as Activity)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Text("Upgrade Now")
+            }
         }
-        TextButton(
-            onClick = { /* Implement restore purchases logic */ },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Restore Purchases")
+        if (!isPremium) {
+            TextButton(
+                onClick = { /* Implement restore purchases logic */ },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Restore Purchases")
+            }
         }
     }
 }
 
 @Composable
-fun FeedbackSection(viewModel: SettingsViewModel) {
+fun FeedbackSection(viewModel: SettingsViewModel, activity: Activity) {
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
     SettingsSection(title = "Feedback") {

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "244941185460-gbvm7s8rf1a4s8fg9rjsa0tbt5ecaggr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mytaskpro",
+            "certificate_hash": "9d7acd914b560f6015d82a46dbcb141b5c4cdf29"
+          }
+        },
+        {
           "client_id": "244941185460-vtpm77q2ba6o5bc42hnsfg51n7h563lo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -29,7 +37,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "244941185460-3937f7tc824uu8dm41i2ns08mlk0lsdn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

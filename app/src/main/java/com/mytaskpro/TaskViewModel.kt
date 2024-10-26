@@ -62,6 +62,7 @@ import com.mytaskpro.data.NoteTypeAdapter
 import com.mytaskpro.domain.TaskCompletionBadgeEvaluator
 import com.mytaskpro.services.GoogleCalendarSyncService
 import com.mytaskpro.data.TaskPriority
+import com.mytaskpro.managers.AchievementBadgesManager
 
 
 @HiltViewModel
@@ -78,7 +79,9 @@ class TaskViewModel @Inject constructor(
     private val badgeRepository: BadgeRepository,
     private val badgeManager: BadgeManager,
     private val googleCalendarSyncService: GoogleCalendarSyncService,
-    private val badgeEvaluator: TaskCompletionBadgeEvaluator
+    private val badgeEvaluator: TaskCompletionBadgeEvaluator,
+    private val achievementBadgesManager: AchievementBadgesManager
+
 ) : AndroidViewModel(application as Application) {
 
 
@@ -118,6 +121,7 @@ class TaskViewModel @Inject constructor(
     private val _showAddTaskDialog = MutableStateFlow(false)
     val showAddTaskDialog: StateFlow<Boolean> = _showAddTaskDialog.asStateFlow()
 
+
     private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
 
@@ -140,6 +144,9 @@ class TaskViewModel @Inject constructor(
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+
+    private val _tasksCompleted = MutableStateFlow(0)
+    val tasksCompleted: StateFlow<Int> = _tasksCompleted.asStateFlow()
 
     enum class SyncStatus { Idle, Syncing, Success, Error }
 
@@ -214,6 +221,23 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun initializeAchievementBadges(userId: String) {
+        viewModelScope.launch {
+            achievementBadgesManager.initializeForUser(userId)
+        }
+    }
+
+    fun onTaskCompleted(userId: String) {
+        viewModelScope.launch {
+            achievementBadgesManager.onTaskCompleted(userId)
+        }
+    }
+
+    fun getNextBadgeInfo(): Pair<Badge, Int> {
+        return achievementBadgesManager.getNextBadgeInfo()
+    }
+
+
 
     fun getTaskCountForToday(): Flow<Int> {
         return tasks.map { taskList ->
@@ -263,19 +287,23 @@ class TaskViewModel @Inject constructor(
         evaluateBadges()
     }
 
-    private var tasksCompleted = 0
 
     private fun updateBadge() {
         viewModelScope.launch {
             val userId = firebaseAuth.currentUser?.uid ?: return@launch
             val currentBadge = _currentBadge.value
-            val newBadge = badgeEvaluator.evaluate(currentBadge, tasksCompleted)
+            val newBadge = badgeEvaluator.evaluate(currentBadge, _tasksCompleted.value)
             if (newBadge != currentBadge) {
                 _currentBadge.value = newBadge
                 _showBadgeAchievement.value = newBadge
                 badgeManager.evaluateUserBadge(userId) // This will update the badge in the repository
             }
         }
+    }
+
+    fun incrementTasksCompleted() {
+        _tasksCompleted.value += 1
+        updateBadge()
     }
 
     val filteredAndSortedTasks = combine(
