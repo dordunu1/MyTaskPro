@@ -349,6 +349,15 @@ class TaskViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    private fun initializeCompletedTaskCount() {
+        viewModelScope.launch {
+            val completedCount = taskDao.getAllTasksAsList().count { it.isCompleted }
+            _completedTaskCount.value = completedCount
+            _tasksCompleted.value = completedCount
+            evaluateBadges()
+        }
+    }
+
     init {
         loadNotes()
         loadUserPreferences()
@@ -358,7 +367,8 @@ class TaskViewModel @Inject constructor(
         checkUserSignInStatus()
         updateCompletionPercentage()
         observeCurrentBadge()
-        fetchUpcomingTasks() // Add this line
+        fetchUpcomingTasks()
+        initializeCompletedTaskCount()  // Add this line
     }
 
     private fun observeCurrentBadge() {
@@ -855,6 +865,12 @@ class TaskViewModel @Inject constructor(
 
     fun scheduleRepetitiveTask(task: Task) {
         val repetitiveSettings = task.repetitiveSettings ?: return
+
+        // Convert LocalDate to timestamp if it exists
+        val endDateTimestamp = repetitiveSettings.endDate?.let {
+            it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        } ?: -1L
+
         val workRequest = OneTimeWorkRequestBuilder<RepetitiveTaskWorker>()
             .setInputData(
                 workDataOf(
@@ -865,7 +881,7 @@ class TaskViewModel @Inject constructor(
                     "monthDay" to (repetitiveSettings.monthDay ?: -1),
                     "monthWeek" to (repetitiveSettings.monthWeek ?: -1),
                     "monthWeekDay" to (repetitiveSettings.monthWeekDay ?: -1),
-                    "endDate" to (repetitiveSettings.endDate ?: -1L)
+                    "endDateTimestamp" to endDateTimestamp  // Changed from endDate to endDateTimestamp
                 )
             )
             .setInitialDelay(calculateNextOccurrence(task), TimeUnit.MILLISECONDS)
@@ -1083,22 +1099,44 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val task = taskDao.getTaskById(taskId) ?: return@launch
-                val updatedTask = task.copy(isCompleted = isCompleted)
+                val updatedTask = task.copy(
+                    isCompleted = isCompleted,
+                    completionDate = if (isCompleted) Date() else null
+                )
                 taskDao.updateTask(updatedTask)
+
                 if (isCompleted) {
                     cancelRepetitiveTask(taskId)
                     _completedTaskCount.value += 1
-                    _showConfetti.value = true // Trigger confetti
+                    _tasksCompleted.value += 1  // Update both counters
+                    _showConfetti.value = true
+
+                    // Sync with Firebase if user is signed in
+                    firebaseAuth.currentUser?.uid?.let { userId ->
+                        firestore.collection("users").document(userId)
+                            .collection("tasks").document(taskId.toString())
+                            .set(updatedTask)
+                    }
                 } else {
                     updatedTask.repetitiveSettings?.let { scheduleRepetitiveTask(updatedTask) }
                     _completedTaskCount.value -= 1
+                    _tasksCompleted.value -= 1  // Update both counters
                 }
+
                 updateWidget()
                 updateCompletionPercentage()
                 triggerNotificationUpdate()
+                fetchUpcomingTasks()
 
                 // Evaluate badges immediately after updating task completion
                 evaluateBadges()
+
+                // Force refresh tasks
+                refreshTasks()
+
+                // Log the current state
+                Log.d("TaskViewModel", "Completed tasks count: ${_completedTaskCount.value}")
+                Log.d("TaskViewModel", "Tasks completed: ${_tasksCompleted.value}")
             } catch (e: Exception) {
                 Log.e("TaskViewModel", "Error updating task completion: ${e.message}")
             }

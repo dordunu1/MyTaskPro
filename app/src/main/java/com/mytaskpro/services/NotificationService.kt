@@ -1,10 +1,11 @@
-package com.mytaskpro.services // Replace with your actual package name
+package com.mytaskpro.services
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.mytaskpro.NotificationActionReceiver
 import com.mytaskpro.R
@@ -18,7 +19,18 @@ class NotificationService(private val context: Context) {
     }
 
     private fun createNotificationChannel() {
-        // ... (existing channel creation code)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Task Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for task reminders and due dates"
+                enableLights(true)
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
     fun showTaskNotification(taskId: Int, title: String, description: String) {
@@ -39,7 +51,7 @@ class NotificationService(private val context: Context) {
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
-            taskId + 1000, // Use a different request code to avoid conflicts
+            taskId + 1000,
             snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -48,6 +60,8 @@ class NotificationService(private val context: Context) {
             .setContentTitle(title)
             .setContentText(description)
             .setSmallIcon(R.drawable.ic_notification)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(R.drawable.ic_check, "Complete", completePendingIntent)
             .addAction(R.drawable.ic_snooze_custom, "Snooze", snoozePendingIntent)
             .setAutoCancel(true)

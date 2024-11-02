@@ -30,12 +30,13 @@ import com.mytaskpro.viewmodel.TaskViewModel.UpcomingTask
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-
 @Composable
-fun UpcomingTasksSection(upcomingTasks: Map<LocalDate, List<UpcomingTask>>) {
+fun UpcomingTasksSection(
+    upcomingTasks: Map<LocalDate, List<UpcomingTask>>,
+    modifier: Modifier = Modifier  // Added modifier parameter
+) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier  // Use the passed modifier
             .padding(vertical = 8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {

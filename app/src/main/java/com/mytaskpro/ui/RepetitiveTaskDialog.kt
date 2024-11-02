@@ -22,6 +22,9 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
+import java.time.format.DateTimeFormatter
+import java.time.Instant
+import java.time.ZoneOffset
 
 enum class RepetitionType {
     ONE_TIME, DAILY, WEEKDAYS, WEEKLY, MONTHLY, YEARLY
@@ -323,7 +326,17 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
                 selected = endOption == EndOption.NEVER,
                 onClick = {
                     endOption = EndOption.NEVER
-                    onSettingsChanged(settings.copy(endOption = EndOption.NEVER, endDate = null, endOccurrences = null))
+                    onSettingsChanged(RepetitiveTaskSettings.fromLocalDate(
+                        type = settings.type,
+                        interval = settings.interval,
+                        weekDays = settings.weekDays,
+                        monthDay = settings.monthDay,
+                        monthWeek = settings.monthWeek,
+                        monthWeekDay = settings.monthWeekDay,
+                        endOption = EndOption.NEVER,
+                        endDate = null,
+                        endOccurrences = null
+                    ))
                 }
             )
             Text("Never")
@@ -333,7 +346,17 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
                 selected = endOption == EndOption.BY_DATE,
                 onClick = {
                     endOption = EndOption.BY_DATE
-                    onSettingsChanged(settings.copy(endOption = EndOption.BY_DATE, endDate = LocalDate.now(), endOccurrences = null))
+                    onSettingsChanged(RepetitiveTaskSettings.fromLocalDate(
+                        type = settings.type,
+                        interval = settings.interval,
+                        weekDays = settings.weekDays,
+                        monthDay = settings.monthDay,
+                        monthWeek = settings.monthWeek,
+                        monthWeekDay = settings.monthWeekDay,
+                        endOption = EndOption.BY_DATE,
+                        endDate = LocalDate.now(),
+                        endOccurrences = null
+                    ))
                     showDatePicker = true
                 }
             )
@@ -341,7 +364,8 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
             if (endOption == EndOption.BY_DATE) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = { showDatePicker = true }) {
-                    Text(settings.endDate?.toString() ?: "Select Date")
+                    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, yyyy") }
+                    Text(settings.endDate?.format(dateFormatter) ?: "Select Date")
                 }
             }
         }
@@ -350,7 +374,17 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
                 selected = endOption == EndOption.AFTER_OCCURRENCES,
                 onClick = {
                     endOption = EndOption.AFTER_OCCURRENCES
-                    onSettingsChanged(settings.copy(endOption = EndOption.AFTER_OCCURRENCES, endDate = null, endOccurrences = 1))
+                    onSettingsChanged(RepetitiveTaskSettings.fromLocalDate(
+                        type = settings.type,
+                        interval = settings.interval,
+                        weekDays = settings.weekDays,
+                        monthDay = settings.monthDay,
+                        monthWeek = settings.monthWeek,
+                        monthWeekDay = settings.monthWeekDay,
+                        endOption = EndOption.AFTER_OCCURRENCES,
+                        endDate = null,
+                        endOccurrences = 1
+                    ))
                 }
             )
             Text("After Occurrences")
@@ -359,21 +393,49 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
                 VerticalPicker(
                     items = (1..100).toList(),
                     selectedItem = settings.endOccurrences ?: 1,
-                    onItemSelected = { onSettingsChanged(settings.copy(endOccurrences = it)) }
+                    onItemSelected = { occurrences ->
+                        onSettingsChanged(RepetitiveTaskSettings.fromLocalDate(
+                            type = settings.type,
+                            interval = settings.interval,
+                            weekDays = settings.weekDays,
+                            monthDay = settings.monthDay,
+                            monthWeek = settings.monthWeek,
+                            monthWeekDay = settings.monthWeekDay,
+                            endOption = EndOption.AFTER_OCCURRENCES,
+                            endDate = null,
+                            endOccurrences = occurrences
+                        ))
+                    }
                 )
             }
         }
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = settings.endDate?.toEpochDay()?.times(86400000))
+        val currentTimeMillis = System.currentTimeMillis()
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = settings.endDate?.atStartOfDay()?.toInstant(ZoneOffset.UTC)?.toEpochMilli()
+                ?: currentTimeMillis
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        val selectedDate = LocalDate.ofEpochDay(it / 86400000)
-                        onSettingsChanged(settings.copy(endDate = selectedDate))
+                        val selectedDate = Instant.ofEpochMilli(it)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                        onSettingsChanged(RepetitiveTaskSettings.fromLocalDate(
+                            type = settings.type,
+                            interval = settings.interval,
+                            weekDays = settings.weekDays,
+                            monthDay = settings.monthDay,
+                            monthWeek = settings.monthWeek,
+                            monthWeekDay = settings.monthWeekDay,
+                            endOption = EndOption.BY_DATE,
+                            endDate = selectedDate,
+                            endOccurrences = null
+                        ))
                     }
                     showDatePicker = false
                 }) {
@@ -390,4 +452,3 @@ fun EndOptionsSelector(settings: RepetitiveTaskSettings, onSettingsChanged: (Rep
         }
     }
 }
-

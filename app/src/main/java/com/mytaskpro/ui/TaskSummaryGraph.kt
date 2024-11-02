@@ -18,16 +18,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.axis.horizontal.bottomAxis
 import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
@@ -41,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.mytaskpro.data.Task
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.zIndex
 import com.mytaskpro.data.CategoryType
 import com.mytaskpro.data.TaskSummary
 import com.mytaskpro.managers.TaskSummaryGraphManager
@@ -49,8 +47,6 @@ import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
 import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.compose.component.textComponent
-import com.mytaskpro.viewmodel.TaskViewModel.UpcomingTask
-
 
 @Composable
 fun TaskSummaryGraph(
@@ -71,73 +67,112 @@ fun TaskSummaryGraph(
     if (isEnabled) {
         var selectedTimeFrame by remember { mutableStateOf(TimeFrame.WEEKLY) }
 
-        LazyColumn(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Task Summary",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 40.dp, bottom = 80.dp),  // Increased top padding
+                state = rememberLazyListState()
+            ) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .zIndex(1f)
+                            .padding(vertical = 8.dp),  // Added vertical padding
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),  // Adjusted height
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Task Summary",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                IconButton(onClick = onCloseClick) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close Task Summary"
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            TimeFrameSelector(
+                                selectedTimeFrame = selectedTimeFrame,
+                                onTimeFrameSelected = { selectedTimeFrame = it },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MainGraph(
+                        viewModel = viewModel,
+                        timeFrame = selectedTimeFrame,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    IconButton(onClick = onCloseClick) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Task Summary"
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    KeyMetricsDashboard(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    DetailedAnalytics(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        UpcomingTasksSection(
+                            upcomingTasks = upcomingTasks,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                TimeFrameSelector(
-                    selectedTimeFrame = selectedTimeFrame,
-                    onTimeFrameSelected = { selectedTimeFrame = it }
-                )
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                MainGraph(viewModel = viewModel, timeFrame = selectedTimeFrame)
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                KeyMetricsDashboard(viewModel = viewModel)
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                DetailedAnalytics(viewModel = viewModel)
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    UpcomingTasksSection(upcomingTasks = upcomingTasks)
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AIRecommendationSection(
+                        viewModel = aiRecommendationViewModel,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                AIRecommendationSection(viewModel = aiRecommendationViewModel)
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     } else {
-        // Show a message when the Task Summary Graph is disabled
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -156,7 +191,8 @@ fun TaskSummaryGraph(
 @Composable
 fun TimeFrameSelector(
     selectedTimeFrame: TimeFrame,
-    onTimeFrameSelected: (TimeFrame) -> Unit
+    onTimeFrameSelected: (TimeFrame) -> Unit,
+    modifier: Modifier = Modifier  // Added
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -189,80 +225,102 @@ fun TimeFrameSelector(
 }
 
 @Composable
-fun MainGraph(viewModel: TaskViewModel, timeFrame: TimeFrame) {
+fun MainGraph(
+    viewModel: TaskViewModel,
+    timeFrame: TimeFrame,
+    modifier: Modifier = Modifier
+) {
     val completionData by viewModel.getCompletionData(timeFrame).collectAsState(initial = emptyList())
     val categoryData by viewModel.getCategoryCompletionData(timeFrame).collectAsState(initial = emptyMap())
-
     var selectedPoint by remember { mutableStateOf<Pair<Int, List<Task>>?>(null) }
 
-    val chartEntryModel = entryModelOf(
-        completionData.mapIndexed { index, (completed, total) ->
-            FloatEntry(x = index.toFloat(), y = if (total > 0) (completed.toFloat() / total) * 100 else 0f)
-        },
-        *categoryData.map { (category, data) ->
-            data.mapIndexed { index, (completed, total) ->
-                FloatEntry(x = index.toFloat(), y = if (total > 0) (completed.toFloat() / total) * 100 else 0f)
-            }
-        }.toTypedArray()
-    )
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            val chartEntryModel = entryModelOf(
+                completionData.mapIndexed { index, (completed, total) ->
+                    FloatEntry(x = index.toFloat(), y = if (total > 0) (completed.toFloat() / total) * 100 else 0f)
+                },
+                *categoryData.map { (category, data) ->
+                    data.mapIndexed { index, (completed, total) ->
+                        FloatEntry(x = index.toFloat(), y = if (total > 0) (completed.toFloat() / total) * 100 else 0f)
+                    }
+                }.toTypedArray()
+            )
 
-    val chartColors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.error
-    )
-    Chart(
-        chart = lineChart(
-            lines = categoryData.keys.mapIndexed { index, category ->
-                LineChart.LineSpec(
-                    lineColor = chartColors[index % chartColors.size].toArgb(),
-                    lineBackgroundShader = verticalGradient(
-                        colors = arrayOf(
-                            chartColors[index % chartColors.size].copy(alpha = 0.5f),
-                            chartColors[index % chartColors.size].copy(alpha = 0.1f)
+            val chartColors = listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.secondary,
+                MaterialTheme.colorScheme.tertiary,
+                MaterialTheme.colorScheme.error
+            )
+
+            Chart(
+                chart = lineChart(
+                    lines = categoryData.keys.mapIndexed { index, category ->
+                        LineChart.LineSpec(
+                            lineColor = chartColors[index % chartColors.size].toArgb(),
+                            lineBackgroundShader = verticalGradient(
+                                colors = arrayOf(
+                                    chartColors[index % chartColors.size].copy(alpha = 0.5f),
+                                    chartColors[index % chartColors.size].copy(alpha = 0.1f)
+                                )
+                            )
+                        )
+                    } + LineChart.LineSpec(
+                        lineColor = MaterialTheme.colorScheme.primary.toArgb(),
+                        lineBackgroundShader = verticalGradient(
+                            colors = arrayOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            )
                         )
                     )
-                )
-            } + LineChart.LineSpec(
-                lineColor = MaterialTheme.colorScheme.primary.toArgb(),
-                lineBackgroundShader = verticalGradient(
-                    colors = arrayOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    )
-                )
+                ),
+                model = chartEntryModel,
+                startAxis = startAxis(
+                    label = axisLabelComponent(color = MaterialTheme.colorScheme.onSurface),
+                    title = "Completion Rate (%)",
+                    titleComponent = axisTitleComponent(color = MaterialTheme.colorScheme.onSurface),
+                    valueFormatter = { value, _ -> "${value.toInt()}%" },
+                    guideline = null
+                ),
+                bottomAxis = bottomAxis(
+                    label = axisLabelComponent(color = MaterialTheme.colorScheme.onSurface),
+                    title = when (timeFrame) {
+                        TimeFrame.DAILY -> "Days"
+                        TimeFrame.WEEKLY -> "Weeks"
+                        TimeFrame.MONTHLY -> "Months"
+                    },
+                    titleComponent = axisTitleComponent(color = MaterialTheme.colorScheme.onSurface),
+                    valueFormatter = { value, _ ->
+                        when (timeFrame) {
+                            TimeFrame.DAILY -> "Day ${value.toInt() + 1}"
+                            TimeFrame.WEEKLY -> "Week ${value.toInt() + 1}"
+                            TimeFrame.MONTHLY -> "Month ${value.toInt() + 1}"
+                        }
+                    },
+                    guideline = null
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
             )
-        ),
-        model = chartEntryModel,
-        startAxis = startAxis(
-            label = axisLabelComponent(color = MaterialTheme.colorScheme.onSurface),
-            title = "Completion Rate (%)",
-            titleComponent = axisTitleComponent(color = MaterialTheme.colorScheme.onSurface),
-            valueFormatter = { value, _ -> "${value.toInt()}%" },
-            guideline = null
-        ),
-        bottomAxis = bottomAxis(
-            label = axisLabelComponent(color = MaterialTheme.colorScheme.onSurface),
-            title = when (timeFrame) {
-                TimeFrame.DAILY -> "Days"
-                TimeFrame.WEEKLY -> "Weeks"
-                TimeFrame.MONTHLY -> "Months"
-            },
-            titleComponent = axisTitleComponent(color = MaterialTheme.colorScheme.onSurface),
-            valueFormatter = { value, _ ->
-                when (timeFrame) {
-                    TimeFrame.DAILY -> "Day ${value.toInt() + 1}"
-                    TimeFrame.WEEKLY -> "Week ${value.toInt() + 1}"
-                    TimeFrame.MONTHLY -> "Month ${value.toInt() + 1}"
-                }
-            },
-            guideline = null
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-    )
+        }
+    }
 
     selectedPoint?.let { (index, tasks) ->
         TaskDetailsDialog(
@@ -319,7 +377,10 @@ fun axisTitleComponent(color: Color) = textComponent(
 )
 
 @Composable
-fun KeyMetricsDashboard(viewModel: TaskViewModel) {
+fun KeyMetricsDashboard(
+    viewModel: TaskViewModel,
+    modifier: Modifier = Modifier  // Added
+) {
     var productivityScore by remember { mutableStateOf(0) }
     var currentStreak by remember { mutableStateOf(0) }
     var overdueTasks by remember { mutableStateOf(0) }
@@ -442,7 +503,10 @@ fun MetricTooltip(text: String) {
 }
 
 @Composable
-fun DetailedAnalytics(viewModel: TaskViewModel) {
+fun DetailedAnalytics(
+    viewModel: TaskViewModel,
+    modifier: Modifier = Modifier  // Added
+) {
     val analyticsData by viewModel.getBasicAnalytics().collectAsState(initial = null)
     val categoryColors = remember { getCategoryColors() }
     var expandedSection by remember { mutableStateOf<String?>(null) }

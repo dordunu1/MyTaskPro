@@ -29,7 +29,10 @@ import com.mytaskpro.ui.viewmodel.AIRecommendationViewModel
 import java.util.Locale
 
 @Composable
-fun AIRecommendationSection(viewModel: AIRecommendationViewModel) {
+fun AIRecommendationSection(
+    viewModel: AIRecommendationViewModel,
+    modifier: Modifier = Modifier  // Added
+) {
     var isExpanded by remember { mutableStateOf(false) }
     val recommendations by viewModel.recommendations.collectAsState()
 
