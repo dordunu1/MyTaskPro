@@ -15,18 +15,19 @@ android {
         applicationId = "com.mytaskpro"
         minSdk = 29
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.0.6"
+        versionCode = 12
+        versionName = "1.1.1"
 
+        buildConfigField("String", "VERSION_NAME", "\"${defaultConfig.versionName}\"")
+        buildConfigField("int", "VERSION_CODE", "${defaultConfig.versionCode}")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
     }
-
     signingConfigs {
         create("release") {
-            storeFile = file("\"E:\\2ND BACKUP\\my-release-key.jks\"")
+            storeFile =  file("E:/2ND BACKUP/my-release-key.jks")  // Fix the path format
             storePassword = "//Diccy@19962708.#@!"
             keyAlias = "MyTaskPro"
             keyPassword = "//Diccy@19962708.#@!"

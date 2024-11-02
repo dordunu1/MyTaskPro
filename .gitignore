@@ -1,3 +1,11 @@
+# Release files
+app/release/
+*.apk
+*.aab
+*.dm
+*.hprof
+
+# Keep existing entries
 *.iml
 .gradle
 /local.properties

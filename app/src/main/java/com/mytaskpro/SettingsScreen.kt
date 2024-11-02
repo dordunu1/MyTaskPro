@@ -82,6 +82,8 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             FeedbackSection(viewModel = settingsViewModel, activity = activity)
             Spacer(modifier = Modifier.height(16.dp))
+            FAQSection(settingsViewModel)
+            Spacer(modifier = Modifier.height(16.dp))
             AboutSection(settingsViewModel)
         }
     }
@@ -902,26 +904,170 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
+fun FAQSection(viewModel: SettingsViewModel) {
+    var showFAQDialog by remember { mutableStateOf(false) }
+
+    SettingsSection(title = "Help & FAQ") {
+        TextButton(
+            onClick = { showFAQDialog = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("View FAQ")
+        }
+    }
+
+    if (showFAQDialog) {
+        FAQDialog(onDismiss = { showFAQDialog = false })
+    }
+}
+
+@Composable
+private fun FAQDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Notification Troubleshooting Guide",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Introduction
+                Text(
+                    "To ensure reliable notifications, please configure your device settings:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Samsung Section
+                Text(
+                    "Samsung Devices",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    """
+                    1. Go to Settings > Apps > MyTaskPro
+                    2. Select Battery
+                    3. Change from "Restricted" to "Unrestricted"
+                    """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
+                )
+
+                // Realme/OPPO Section
+                Text(
+                    "Realme/OPPO Devices",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    """
+                    1. Go to Settings > Apps > MyTaskPro
+                    2. Select Battery Usage
+                    3. Enable these settings:
+                       • Allow foreground activity
+                       • Allow background activity
+                       • Allow auto launch
+                       • Allow this app to launch other apps or services
+                    """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
+                )
+
+                // Other Devices Section
+                Text(
+                    "Other Android Devices",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    """
+                    1. Go to Settings > Apps > MyTaskPro
+                    2. Look for Battery settings
+                    3. Disable any power saving restrictions
+                    """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
+                )
+
+                // Note
+                Text(
+                    "Note: After changing these settings, you may need to restart the app.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+                )
+
+                // Close Button
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FAQItem(question: String, answer: String) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            text = question,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = answer,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Divider(modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+@Composable
 fun AboutSection(viewModel: SettingsViewModel) {
     var showTermsOfService by remember { mutableStateOf(false) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
+    val versionInfo = viewModel.getVersionInfo()
 
     SettingsSection(title = "About") {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                "Version: ${viewModel.appVersion.collectAsState().value}",
+                "Version ${versionInfo.versionName} (${versionInfo.versionCode})",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             TextButton(
                 onClick = { showPrivacyPolicy = true },
-                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(vertical = 4.dp)
             ) {
                 Text("Privacy Policy")
             }
             TextButton(
                 onClick = { showTermsOfService = true },
-                modifier = Modifier.align(Alignment.Start).padding(vertical = 4.dp)
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(vertical = 4.dp)
             ) {
                 Text("Terms of Service")
             }

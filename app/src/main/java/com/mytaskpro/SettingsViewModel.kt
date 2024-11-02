@@ -16,6 +16,7 @@ import com.mytaskpro.billing.BillingManager
 import com.mytaskpro.data.TaskPriority
 import com.mytaskpro.managers.AchievementBadgesManager
 import com.mytaskpro.managers.TaskSummaryGraphManager
+import com.mytaskpro.models.VersionInfo
 import com.mytaskpro.services.GoogleCalendarSyncService
 import com.mytaskpro.utils.StatusBarNotificationManager
 import com.mytaskpro.utils.TimeUtils
@@ -24,11 +25,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import com.mytaskpro.util.AppVersionProvider
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -37,6 +38,7 @@ class SettingsViewModel @Inject constructor(
     private val googleCalendarSyncService: GoogleCalendarSyncService,
     private val billingManager: BillingManager,
     val taskSummaryGraphManager: TaskSummaryGraphManager,
+    private val appVersionProvider: AppVersionProvider,
     private val achievementBadgesManager: AchievementBadgesManager
 ) : ViewModel() {
 
@@ -103,9 +105,10 @@ class SettingsViewModel @Inject constructor(
     val widgetTaskCount = _widgetTaskCount.asStateFlow()
 
     // App Info
-    private val _appVersion = MutableStateFlow("1.0.0")
+    // In SettingsViewModel
+// App Info
+    private val _appVersion = MutableStateFlow(appVersionProvider.getVersionName())
     val appVersion = _appVersion.asStateFlow()
-
     // Force Refresh
     private val _forceRefresh = MutableStateFlow(0)
     val forceRefresh: StateFlow<Int> = _forceRefresh.asStateFlow()
@@ -146,6 +149,13 @@ class SettingsViewModel @Inject constructor(
                 _premiumProductDetails.value = productDetails.firstOrNull()
             }
         }
+    }
+
+    fun getVersionInfo(): VersionInfo {
+        return VersionInfo(
+            versionName = appVersionProvider.getVersionName(),
+            versionCode = appVersionProvider.getVersionCode()
+        )
     }
 
     fun toggleTaskPriority() {
