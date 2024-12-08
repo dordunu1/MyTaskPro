@@ -80,7 +80,8 @@ class TaskViewModel @Inject constructor(
     private val badgeManager: BadgeManager,
     private val googleCalendarSyncService: GoogleCalendarSyncService,
     private val badgeEvaluator: TaskCompletionBadgeEvaluator,
-    private val achievementBadgesManager: AchievementBadgesManager
+    private val achievementBadgesManager: AchievementBadgesManager,
+    private val customCategoryDao: CustomCategoryDao
 
 ) : AndroidViewModel(application as Application) {
 
@@ -382,6 +383,13 @@ class TaskViewModel @Inject constructor(
                 _activeCategoryTypes.value = activeCategories + setOf(CategoryType.COMPLETED)
             }
         }
+
+        // Collect custom categories from database
+        viewModelScope.launch {
+            customCategoryDao.getAllCustomCategories().collect { categories ->
+                _customCategories.value = categories.map { it.toCategoryType() }
+            }
+        }
     }
 
     private fun observeCurrentBadge() {
@@ -428,10 +436,12 @@ class TaskViewModel @Inject constructor(
 
     fun createCustomCategory(categoryName: String) {
         viewModelScope.launch {
-            val newCategory = CategoryType("CUSTOM", categoryName, Icons.Default.Label, CategoryType.generateRandomColor())
-            _customCategories.value = _customCategories.value + newCategory
-            // You might also want to save this to a local database or Firebase
-            // depending on your app's architecture
+            val newCategory = CustomCategory(
+                type = "CUSTOM",
+                displayName = categoryName,
+                color = CategoryType.generateRandomColor()
+            )
+            customCategoryDao.insertCustomCategory(newCategory)
         }
     }
 

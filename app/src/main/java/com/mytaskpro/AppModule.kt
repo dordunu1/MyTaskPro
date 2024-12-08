@@ -33,6 +33,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.work.WorkManager
 import com.mytaskpro.managers.AchievementBadgesManager
 import com.mytaskpro.managers.TaskSummaryGraphManager
+import com.mytaskpro.data.CustomCategoryDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -155,5 +156,11 @@ object AppModule {
         @ApplicationContext context: Context
     ): AIRecommendationRepository {
         return AIRecommendationRepositoryImpl(firestore, context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCustomCategoryDao(database: AppDatabase): CustomCategoryDao {
+        return database.customCategoryDao()
     }
 }

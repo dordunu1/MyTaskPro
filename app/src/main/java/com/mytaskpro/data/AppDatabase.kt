@@ -8,12 +8,22 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Task::class, Note::class, UserBadgeInfo::class], version = 12)
-@TypeConverters(Converters::class, TaskPriorityConverter::class)
+@Database(
+    entities = [
+        Task::class,
+        Note::class,
+        UserBadgeInfo::class,
+        CustomCategory::class
+    ],
+    version = 13,
+    exportSchema = false
+)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun noteDao(): NoteDao
     abstract fun badgeDao(): BadgeDao
+    abstract fun customCategoryDao(): CustomCategoryDao
 
     companion object {
         @Volatile
@@ -38,13 +48,15 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10,
                         MIGRATION_10_11,
-                        MIGRATION_11_12
+                        MIGRATION_11_12,
+                        MIGRATION_12_13
                     )
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
+
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE Note ADD COLUMN photo_path TEXT")
@@ -153,8 +165,7 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("UPDATE tasks SET lastModified = strftime('%s', 'now') * 1000")
             }
         }
-    }
-}
+
         private val MIGRATION_10_11 = object : Migration(10, 11) {
            override fun migrate(database: SupportSQLiteDatabase) {
              database.execSQL("""
@@ -175,3 +186,19 @@ private val MIGRATION_11_12 = object : Migration(11, 12) {
         database.execSQL("ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'MEDIUM'")
     }
 }
+
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create the custom_categories table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS custom_categories (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        type TEXT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        color INTEGER NOT NULL
+                    )
+                """)
+            }
+        }
+    }  // end of companion object
+}  // end of AppDatabase class

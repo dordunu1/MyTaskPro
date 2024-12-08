@@ -22,11 +22,12 @@ fun CategorySelectionDialog(
     onNewCategoryCreated: (String) -> Unit,
     customCategories: List<CategoryType>
 ) {
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryName by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Category") },
+        title = { Text("Select Category") },
         text = {
             Column {
                 // Custom categories
@@ -34,33 +35,59 @@ fun CategorySelectionDialog(
                     CategoryItem(category, onCategorySelected)
                 }
 
-                // New Category input field
-                TextField(
-                    value = newCategoryName,
-                    onValueChange = { newCategoryName = it },
-                    label = { Text("Category Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (newCategoryName.isNotBlank()) {
-                        onNewCategoryCreated(newCategoryName)
-                        newCategoryName = ""
-                    }
+                // New Category option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showNewCategoryDialog = true }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add new category")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("New Category")
                 }
-            ) {
-                Text("Create")
             }
         },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
     )
+
+    if (showNewCategoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewCategoryDialog = false },
+            title = { Text("Create New Category") },
+            text = {
+                TextField(
+                    value = newCategoryName,
+                    onValueChange = { newCategoryName = it },
+                    label = { Text("Category Name") }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newCategoryName.isNotBlank()) {
+                            onNewCategoryCreated(newCategoryName)
+                            showNewCategoryDialog = false
+                            newCategoryName = ""
+                        }
+                    }
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewCategoryDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
