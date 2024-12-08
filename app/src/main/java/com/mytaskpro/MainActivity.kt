@@ -45,6 +45,8 @@ import javax.inject.Inject
 import com.google.api.services.calendar.CalendarScopes
 import com.google.android.gms.common.api.Scope
 import com.mytaskpro.billing.BillingManager
+import android.os.Handler
+import android.os.Looper
 
 
 @AndroidEntryPoint
@@ -246,23 +248,34 @@ class MainActivity : ComponentActivity() {
                 )
                 if (showCategorySelection) {
                     CategorySelectionDialog(
-                        onDismiss = { taskViewModel.hideCategorySelectionDialog() },
+                        onDismiss = {
+                            taskViewModel.hideCategorySelectionDialog()
+                        },
                         onCategorySelected = { category ->
+                            Log.d("MainActivity", "Category selected: ${category.displayName}")
                             selectedCategory = category
                             taskViewModel.hideCategorySelectionDialog()
-                            taskViewModel.showAddTaskDialog()
+                            // Add a small delay before showing the add task dialog
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                taskViewModel.showAddTaskDialog()
+                            }, 100)
                         },
                         onNewCategoryCreated = { newCategoryName ->
                             taskViewModel.createCustomCategory(newCategoryName)
+                        },
+                        onCategoryDeleted = { category ->
+                            taskViewModel.deleteCustomCategory(category)
                         },
                         customCategories = taskViewModel.customCategories.collectAsState().value
                     )
                 }
 
+                Log.d("MainActivity", "ShowAddTaskDialog outside: ${showAddTaskDialog}")
                 if (showAddTaskDialog) {
-                    selectedCategory?.let {
+                    Log.d("MainActivity", "Selected category: ${selectedCategory?.displayName}")
+                    selectedCategory?.let { category ->
                         AddTaskDialog(
-                            category = it,
+                            category = category,
                             onDismiss = {
                                 taskViewModel.hideAddTaskDialog()
                                 selectedCategory = null
@@ -271,7 +284,7 @@ class MainActivity : ComponentActivity() {
                                 taskViewModel.addTask(
                                     title = title,
                                     description = description,
-                                    category = selectedCategory ?: CategoryType.WORK,
+                                    category = category,
                                     dueDate = dueDate,
                                     reminderTime = reminderTime,
                                     notifyOnDueDate = notifyOnDueDate,
@@ -282,7 +295,7 @@ class MainActivity : ComponentActivity() {
                                 selectedCategory = null
                             },
                             settingsViewModel = settingsViewModel,
-                            activity = this@MainActivity
+                            activity = this
                         )
                     }
                 }

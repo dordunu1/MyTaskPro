@@ -1,5 +1,6 @@
 package com.mytaskpro.ui
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,16 +15,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.mytaskpro.data.CategoryType
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 fun CategorySelectionDialog(
     onDismiss: () -> Unit,
     onCategorySelected: (CategoryType) -> Unit,
     onNewCategoryCreated: (String) -> Unit,
+    onCategoryDeleted: (CategoryType) -> Unit,
     customCategories: List<CategoryType>
 ) {
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryName by remember { mutableStateOf("") }
+    var showDeleteConfirmation by remember { mutableStateOf<CategoryType?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -32,7 +37,14 @@ fun CategorySelectionDialog(
             Column {
                 // Custom categories
                 customCategories.forEach { category ->
-                    CategoryItem(category, onCategorySelected)
+                    CategoryItem(
+                        category = category,
+                        onCategorySelected = { 
+                            Log.d("CategoryDialog", "Category clicked: ${category.displayName}")
+                            onCategorySelected(category)
+                        },
+                        onLongPress = { showDeleteConfirmation = category }
+                    )
                 }
 
                 // New Category option
@@ -57,6 +69,31 @@ fun CategorySelectionDialog(
         }
     )
 
+    // Delete confirmation dialog
+    if (showDeleteConfirmation != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = null },
+            title = { Text("Delete Category") },
+            text = { Text("Are you sure you want to delete '${showDeleteConfirmation!!.displayName}' category?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onCategoryDeleted(showDeleteConfirmation!!)
+                        showDeleteConfirmation = null
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // New category dialog
     if (showNewCategoryDialog) {
         AlertDialog(
             onDismissRequest = { showNewCategoryDialog = false },
@@ -93,12 +130,19 @@ fun CategorySelectionDialog(
 @Composable
 private fun CategoryItem(
     category: CategoryType,
-    onCategorySelected: (CategoryType) -> Unit
+    onCategorySelected: (CategoryType) -> Unit,
+    onLongPress: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCategorySelected(category) }
+            .clickable(onClick = { onCategorySelected(category) })
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { onLongPress() },
+                    onTap = { onCategorySelected(category) }
+                )
+            }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

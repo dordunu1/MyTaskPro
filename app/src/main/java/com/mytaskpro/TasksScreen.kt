@@ -211,6 +211,9 @@ fun TasksScreen(
             onNewCategoryCreated = { newCategoryName ->
                 viewModel.createCustomCategory(newCategoryName)
             },
+            onCategoryDeleted = { category ->
+                viewModel.deleteCustomCategory(category)
+            },
             customCategories = customCategories
         )
     }

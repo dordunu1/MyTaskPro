@@ -267,10 +267,12 @@ class TaskViewModel @Inject constructor(
 
 
     fun showCategorySelectionDialog() {
+        Log.d("TaskViewModel", "Showing category selection dialog")
         _showCategorySelection.value = true
     }
 
     fun hideCategorySelectionDialog() {
+        Log.d("TaskViewModel", "Hiding category selection dialog")
         _showCategorySelection.value = false
     }
 
@@ -279,10 +281,13 @@ class TaskViewModel @Inject constructor(
     }
 
     fun showAddTaskDialog() {
+        Log.d("TaskViewModel", "Showing add task dialog")
         _showAddTaskDialog.value = true
+        Log.d("TaskViewModel", "Add task dialog state: ${_showAddTaskDialog.value}")
     }
 
     fun hideAddTaskDialog() {
+        Log.d("TaskViewModel", "Hiding add task dialog")
         _showAddTaskDialog.value = false
     }
 
@@ -441,7 +446,11 @@ class TaskViewModel @Inject constructor(
                 displayName = categoryName,
                 color = CategoryType.generateRandomColor()
             )
-            customCategoryDao.insertCustomCategory(newCategory)
+            try {
+                customCategoryDao.insertCustomCategory(newCategory)
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error creating category: ${e.message}")
+            }
         }
     }
 
@@ -1722,6 +1731,19 @@ class TaskViewModel @Inject constructor(
         val notificationSound: String = "default",
         val showConfettiOnCompletion: Boolean = true  // Add this line
     )
+
+    fun deleteCustomCategory(category: CategoryType) {
+        viewModelScope.launch {
+            try {
+                // Get the custom category by name first
+                customCategoryDao.getCategoryByName(category.displayName)?.let { customCategory ->
+                    customCategoryDao.deleteCustomCategory(customCategory)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskViewModel", "Error deleting category: ${e.message}")
+            }
+        }
+    }
 }
 
 
