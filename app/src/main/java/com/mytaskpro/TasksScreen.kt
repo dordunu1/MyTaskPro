@@ -48,6 +48,7 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mytaskpro.SettingsViewModel
 
 
@@ -154,7 +155,8 @@ fun TasksScreen(
                     completedTaskCount = completedTaskCount,
                     onFilterChanged = { viewModel.updateFilterOption(it) },
                     onSortChanged = { viewModel.updateSortOption(it) },
-                    customCategories = customCategories
+                    customCategories = customCategories,
+                    viewModel = viewModel
                 )
 
                 if (isLoading) {
@@ -578,8 +580,11 @@ fun FilterAndSortBar(
     completedTaskCount: Int,
     onFilterChanged: (FilterOption) -> Unit,
     onSortChanged: (SortOption) -> Unit,
-    customCategories: List<CategoryType>
+    customCategories: List<CategoryType>,
+    viewModel: TaskViewModel
 ) {
+    val activeCategories by viewModel.activeCategoryTypes.collectAsState()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -590,7 +595,8 @@ fun FilterAndSortBar(
             selectedOption = filterOption,
             onOptionSelected = onFilterChanged,
             completedTaskCount = completedTaskCount,
-            customCategories = customCategories
+            customCategories = customCategories,
+            activeCategories = activeCategories
         )
         SortDropdown(
             selectedOption = sortOption,
@@ -604,7 +610,8 @@ fun FilterDropdown(
     selectedOption: FilterOption,
     onOptionSelected: (FilterOption) -> Unit,
     completedTaskCount: Int,
-    customCategories: List<CategoryType>
+    customCategories: List<CategoryType>,
+    activeCategories: Set<CategoryType>
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -636,7 +643,7 @@ fun FilterDropdown(
                 }
             )
             CategoryType.values().forEach { category ->
-                if (category.type != "COMPLETED") {
+                if (category.type != "COMPLETED" && activeCategories.contains(category)) {
                     DropdownMenuItem(
                         text = { Text(category.displayName) },
                         onClick = {
@@ -654,29 +661,28 @@ fun FilterDropdown(
                 }
             }
             customCategories.forEach { category ->
-                DropdownMenuItem(
-                    text = { Text(category.displayName) },
-                    onClick = {
-                        onOptionSelected(FilterOption.CustomCategory(category))
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .background(Color(category.color), CircleShape)
-                        )
-                    }
-                )
+                if (activeCategories.contains(category)) {
+                    DropdownMenuItem(
+                        text = { Text(category.displayName) },
+                        onClick = {
+                            onOptionSelected(FilterOption.CustomCategory(category))
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(Color(category.color), CircleShape)
+                            )
+                        }
+                    )
+                }
             }
             DropdownMenuItem(
                 text = { Text("Completed ($completedTaskCount)") },
                 onClick = {
                     onOptionSelected(FilterOption.Completed)
                     expanded = false
-                },
-                leadingIcon = {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null)
                 }
             )
         }

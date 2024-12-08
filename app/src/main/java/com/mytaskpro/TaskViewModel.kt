@@ -165,6 +165,9 @@ class TaskViewModel @Inject constructor(
     private val _customCategories = MutableStateFlow<List<CategoryType>>(emptyList())
     val customCategories: StateFlow<List<CategoryType>> = _customCategories.asStateFlow()
 
+    private val _activeCategoryTypes = MutableStateFlow<Set<CategoryType>>(setOf())
+    val activeCategoryTypes: StateFlow<Set<CategoryType>> = _activeCategoryTypes.asStateFlow()
+
     private val _currentBadge = MutableStateFlow<Badge>(Badge.NONE)
     val currentBadge: StateFlow<Badge> = _currentBadge.asStateFlow()
 
@@ -369,6 +372,16 @@ class TaskViewModel @Inject constructor(
         observeCurrentBadge()
         fetchUpcomingTasks()
         initializeCompletedTaskCount()  // Add this line
+        viewModelScope.launch {
+            _tasks.collect { tasks ->
+                // Update active categories based on non-completed tasks
+                val activeCategories = tasks
+                    .filter { !it.isCompleted }
+                    .map { it.category }
+                    .toSet()
+                _activeCategoryTypes.value = activeCategories + setOf(CategoryType.COMPLETED)
+            }
+        }
     }
 
     private fun observeCurrentBadge() {
