@@ -15,8 +15,8 @@ android {
         applicationId = "com.mytaskpro"
         minSdk = 29
         targetSdk = 34
-        versionCode = 18
-        versionName = "1.1"
+        versionCode = 19
+        versionName = "1.2"
 
         buildConfigField("String", "VERSION_NAME", "\"${defaultConfig.versionName}\"")
         buildConfigField("int", "VERSION_CODE", "${defaultConfig.versionCode}")
