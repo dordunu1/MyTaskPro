@@ -51,7 +51,19 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_11_12,
                         MIGRATION_12_13
                     )
-                    .fallbackToDestructiveMigration()
+                    .addCallback(object : RoomDatabase.Callback() {
+                        override fun onOpen(db: SupportSQLiteDatabase) {
+                            super.onOpen(db)
+                            // Log successful database open
+                            android.util.Log.d("AppDatabase", "Database opened successfully")
+                        }
+
+                        override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                            super.onDestructiveMigration(db)
+                            // Log if destructive migration occurs (shouldn't happen now)
+                            android.util.Log.e("AppDatabase", "Destructive migration occurred!")
+                        }
+                    })
                     .build()
                 INSTANCE = instance
                 instance
@@ -60,8 +72,14 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE Note ADD COLUMN photo_path TEXT")
-                database.execSQL("ALTER TABLE Note ADD COLUMN scanned_text TEXT")
+                try {
+                    database.execSQL("ALTER TABLE notes ADD COLUMN photo_path TEXT")
+                    database.execSQL("ALTER TABLE notes ADD COLUMN scanned_text TEXT")
+                    android.util.Log.d("AppDatabase", "Migration 1->2 completed successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("AppDatabase", "Error in migration 1->2: ${e.message}")
+                    throw e  // Rethrow to let Room handle the error
+                }
             }
         }
 
@@ -113,47 +131,78 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
-                    CREATE TABLE tasks_temp (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        title TEXT NOT NULL,
-                        description TEXT NOT NULL,
-                        category TEXT NOT NULL,
-                        dueDate INTEGER NOT NULL,
-                        reminderTime INTEGER,
-                        isCompleted INTEGER NOT NULL,
-                        completionDate INTEGER,
-                        isSnoozed INTEGER NOT NULL,
-                        snoozeCount INTEGER NOT NULL,
-                        showSnoozeOptions INTEGER NOT NULL,
-                        notifyOnDueDate INTEGER NOT NULL,
-                        repetitiveSettings TEXT
+                try {
+                    // Start transaction for complex migration
+                    database.beginTransaction()
+                    
+                    database.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS tasks_temp (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            title TEXT NOT NULL,
+                            description TEXT NOT NULL,
+                            category TEXT NOT NULL,
+                            dueDate INTEGER NOT NULL,
+                            reminderTime INTEGER,
+                            isCompleted INTEGER NOT NULL,
+                            completionDate INTEGER,
+                            isSnoozed INTEGER NOT NULL,
+                            snoozeCount INTEGER NOT NULL,
+                            showSnoozeOptions INTEGER NOT NULL,
+                            notifyOnDueDate INTEGER NOT NULL,
+                            repetitiveSettings TEXT
+                        )
+                        """
                     )
-                    """
-                )
 
-                database.execSQL(
-                    """
-                    INSERT INTO tasks_temp (id, title, description, category, dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings)
-                    SELECT id, title, description, 
-                    CASE 
-                        WHEN category = '0' THEN '{"type":"WORK","displayName":"Work"}'
-                        WHEN category = '1' THEN '{"type":"SCHOOL","displayName":"School"}'
-                        WHEN category = '2' THEN '{"type":"SOCIAL","displayName":"Social"}'
-                        WHEN category = '3' THEN '{"type":"CRYPTO","displayName":"Crypto"}'
-                        WHEN category = '4' THEN '{"type":"HEALTH","displayName":"Health"}'
-                        WHEN category = '5' THEN '{"type":"MINDFULNESS","displayName":"Mindfulness"}'
-                        WHEN category = '6' THEN '{"type":"INVOICES","displayName":"Invoices"}'
-                        ELSE '{"type":"CUSTOM","displayName":"Custom"}'
-                    END,
-                    dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings
-                    FROM tasks
-                    """
-                )
+                    // Log the number of rows before migration
+                    val cursor = database.query("SELECT COUNT(*) FROM tasks")
+                    cursor.moveToFirst()
+                    val rowCount = cursor.getInt(0)
+                    cursor.close()
+                    android.util.Log.d("AppDatabase", "Migrating $rowCount tasks")
 
-                database.execSQL("DROP TABLE tasks")
-                database.execSQL("ALTER TABLE tasks_temp RENAME TO tasks")
+                    database.execSQL(
+                        """
+                        INSERT INTO tasks_temp (id, title, description, category, dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings)
+                        SELECT id, title, description, 
+                        CASE 
+                            WHEN category = '0' THEN '{"type":"WORK","displayName":"Work"}'
+                            WHEN category = '1' THEN '{"type":"SCHOOL","displayName":"School"}'
+                            WHEN category = '2' THEN '{"type":"SOCIAL","displayName":"Social"}'
+                            WHEN category = '3' THEN '{"type":"CRYPTO","displayName":"Crypto"}'
+                            WHEN category = '4' THEN '{"type":"HEALTH","displayName":"Health"}'
+                            WHEN category = '5' THEN '{"type":"MINDFULNESS","displayName":"Mindfulness"}'
+                            WHEN category = '6' THEN '{"type":"INVOICES","displayName":"Invoices"}'
+                            ELSE '{"type":"CUSTOM","displayName":"Custom"}'
+                        END,
+                        dueDate, reminderTime, isCompleted, completionDate, isSnoozed, snoozeCount, showSnoozeOptions, notifyOnDueDate, repetitiveSettings
+                        FROM tasks
+                        """
+                    )
+
+                    // Verify data migration
+                    val newCursor = database.query("SELECT COUNT(*) FROM tasks_temp")
+                    newCursor.moveToFirst()
+                    val newRowCount = newCursor.getInt(0)
+                    newCursor.close()
+                    
+                    if (newRowCount != rowCount) {
+                        throw IllegalStateException("Data loss during migration! Original: $rowCount, New: $newRowCount")
+                    }
+
+                    database.execSQL("DROP TABLE tasks")
+                    database.execSQL("ALTER TABLE tasks_temp RENAME TO tasks")
+                    
+                    // Mark transaction as successful
+                    database.setTransactionSuccessful()
+                    android.util.Log.d("AppDatabase", "Migration 8->9 completed successfully")
+                } catch (e: Exception) {
+                    android.util.Log.e("AppDatabase", "Error in migration 8->9: ${e.message}")
+                    throw e
+                } finally {
+                    database.endTransaction()
+                }
             }
         }
 
