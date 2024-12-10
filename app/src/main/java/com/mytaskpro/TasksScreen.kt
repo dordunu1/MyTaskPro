@@ -83,8 +83,8 @@ fun TasksScreen(
     val completedTaskCount by viewModel.completedTaskCount.collectAsState(initial = 0)
     val showConfetti by viewModel.showConfetti.collectAsState()
     val showAddTaskDialog by viewModel.showAddTaskDialog.collectAsState()
-
-
+    val isPremium by settingsViewModel.isPremium.collectAsState()
+    var showPremiumDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var editingTask by remember { mutableStateOf<Task?>(null) }
@@ -186,7 +186,10 @@ fun TasksScreen(
                                         hiddenTasks.add(taskId)
                                     }
                                 },
-                                isCompletedFilter = filterOption is FilterOption.Completed
+                                isCompletedFilter = filterOption is FilterOption.Completed,
+                                isPremium = isPremium,
+                                onShowPremiumDialog = { showPremiumDialog = true },
+                                settingsViewModel = settingsViewModel
                             )
                         }
                     }
@@ -196,6 +199,14 @@ fun TasksScreen(
         if (showConfetti) {
             ConfettiAnimation(
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+        if (showPremiumDialog) {
+            PremiumFeatureDialog(
+                onDismiss = { showPremiumDialog = false },
+                onUpgrade = { /* Handle upgrade action here */ },
+                feature = "Priority Settings",
+                description = "Upgrade to premium to set and manage task priorities"
             )
         }
     }
@@ -281,7 +292,10 @@ fun TaskItem(
     onTaskClick: (Int) -> Unit,
     onEditTask: (Task) -> Unit,
     onHideTask: (Int) -> Unit,
-    isCompletedFilter: Boolean
+    isCompletedFilter: Boolean,
+    isPremium: Boolean,
+    onShowPremiumDialog: () -> Unit,
+    settingsViewModel: SettingsViewModel
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(true) }
@@ -362,7 +376,13 @@ fun TaskItem(
                                         shape = RoundedCornerShape(4.dp)
                                     )
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
-                                    .clickable { showPriorityMenu = true }
+                                    .clickable { 
+                                        if (isPremium) {
+                                            showPriorityMenu = true
+                                        } else {
+                                            onShowPremiumDialog()
+                                        }
+                                    }
                             )
                         }
                         Text(
