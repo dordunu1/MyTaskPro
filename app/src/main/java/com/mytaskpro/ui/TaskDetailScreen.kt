@@ -113,33 +113,14 @@ fun TaskDetailScreen(
                         onCategorySelected = { category = it }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    ExposedDropdownMenuBox(
-                        expanded = expandedPriority,
-                        onExpandedChange = { expandedPriority = !expandedPriority }
-                    ) {
-                        TextField(
-                            value = selectedPriority.name,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Priority") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPriority) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandedPriority,
-                            onDismissRequest = { expandedPriority = false }
-                        ) {
-                            TaskPriority.values().forEach { priority ->
-                                DropdownMenuItem(
-                                    text = { Text(priority.name) },
-                                    onClick = {
-                                        selectedPriority = priority
-                                        expandedPriority = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    OutlinedTextField(
+                        value = selectedPriority.name,
+                        onValueChange = {},
+                        label = { Text("Priority") },
+                        readOnly = true,
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 } else {
                     Text(currentTask.title, style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))

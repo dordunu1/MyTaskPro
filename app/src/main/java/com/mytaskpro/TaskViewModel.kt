@@ -325,8 +325,7 @@ class TaskViewModel @Inject constructor(
             when (filter) {
                 is FilterOption.All -> true
                 is FilterOption.Category -> {
-                    val matches = task.category.type == filter.category.type &&
-                            task.category.displayName == filter.category.displayName &&
+                    val matches = task.category.displayName == filter.category.displayName &&
                             !task.isCompleted
                     Log.d("TaskViewModel", "Category filter: task=${task.title}, category=${task.category}, filterCategory=${filter.category}, isCompleted=${task.isCompleted}, matches=$matches")
                     matches
