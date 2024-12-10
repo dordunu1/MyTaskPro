@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -54,6 +55,8 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.shouldShowRationale
+import com.mytaskpro.ui.AddCategoryDialog
+import com.mytaskpro.viewmodel.TaskViewModel
 
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -62,7 +65,8 @@ fun AddNoteDialog(
     category: CategoryType,
     existingNote: Note?,
     onDismiss: () -> Unit,
-    onNoteSaved: (String, String, CategoryType, String?, String?, List<String>, List<String>) -> Unit
+    onNoteSaved: (String, String, CategoryType, String?, String?, List<String>, List<String>) -> Unit,
+    viewModel: TaskViewModel
 ) {
     var noteContent by remember { mutableStateOf(TextFieldValue(existingNote?.let { it.title + "\n" + it.content } ?: "")) }
     var selectedCategory by remember { mutableStateOf(category) }
@@ -110,12 +114,13 @@ fun AddNoteDialog(
                     val (title, content) = splitTitleAndContent(noteContent.text)
                     val allImageUris = selectedImageUris + newlySelectedImageUris.map { it.toString() }
                     onNoteSaved(title, content, selectedCategory, photoPath, scannedText, allImageUris, selectedPdfUris)
-                    isEditing = false  // Switch back to view mode
+                    isEditing = false
                 },
                 onEdit = { isEditing = !isEditing },
                 isEditing = isEditing,
                 category = selectedCategory,
-                onCategoryChanged = { selectedCategory = it }
+                onCategoryChanged = { selectedCategory = it },
+                viewModel = viewModel
             )
 
             LazyColumn(
@@ -246,7 +251,8 @@ fun TopActionBar(
     onEdit: () -> Unit,
     isEditing: Boolean,
     category: CategoryType,
-    onCategoryChanged: (CategoryType) -> Unit
+    onCategoryChanged: (CategoryType) -> Unit,
+    viewModel: TaskViewModel
 ) {
     Row(
         modifier = Modifier
@@ -270,7 +276,11 @@ fun TopActionBar(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (isEditing) {
-                CategoryButton(category = category, onCategoryChanged = onCategoryChanged)
+                CategoryButton(
+                    category = category,
+                    onCategoryChanged = onCategoryChanged,
+                    viewModel = viewModel
+                )
             }
             IconButton(onClick = { /* TODO: Implement share action */ }) {
                 Icon(
@@ -367,33 +377,80 @@ fun ActionButton(icon: ImageVector, text: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun CategoryButton(category: CategoryType, onCategoryChanged: (CategoryType) -> Unit) {
+fun CategoryButton(
+    category: CategoryType,
+    onCategoryChanged: (CategoryType) -> Unit,
+    viewModel: TaskViewModel
+) {
     var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    val customCategories by viewModel.customCategories.collectAsState(initial = emptyList())
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable { showCategoryDropdown = true }
     ) {
-        Icon(category.icon, contentDescription = "Category", tint = MaterialTheme.colorScheme.onPrimary)
-        Text("Category", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary)
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(color = Color(category.color), shape = CircleShape)
+        )
+        Text(
+            text = category.displayName,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onPrimary
+        )
     }
 
     DropdownMenu(
         expanded = showCategoryDropdown,
         onDismissRequest = { showCategoryDropdown = false }
     ) {
-        CategoryType.values().forEach { categoryType ->
-            DropdownMenuItem(
-                text = { Text(categoryType.displayName) },
-                onClick = {
-                    onCategoryChanged(categoryType)
-                    showCategoryDropdown = false
-                },
-                leadingIcon = {
-                    Icon(categoryType.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                }
-            )
+        DropdownMenuItem(
+            text = { Text("+ New Category") },
+            onClick = {
+                showCategoryDropdown = false
+                showAddCategoryDialog = true
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        )
+
+        if (customCategories.isNotEmpty()) {
+            Divider()
+            
+            customCategories.forEach { categoryType ->
+                DropdownMenuItem(
+                    text = { Text(categoryType.displayName) },
+                    onClick = {
+                        onCategoryChanged(categoryType)
+                        showCategoryDropdown = false
+                    },
+                    leadingIcon = {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(color = Color(categoryType.color), shape = CircleShape)
+                        )
+                    }
+                )
+            }
         }
+    }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onCategoryAdded = { categoryName ->
+                viewModel.addCustomCategory(categoryName)
+                showAddCategoryDialog = false
+            }
+        )
     }
 }
 

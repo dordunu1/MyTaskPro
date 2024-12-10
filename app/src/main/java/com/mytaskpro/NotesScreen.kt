@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -44,7 +45,7 @@ fun NotesScreen(viewModel: TaskViewModel) {
 
     if (editingNote != null || showAddNoteDialog) {
         AddNoteDialog(
-            category = editingNote?.category ?: selectedCategory ?: CategoryType.WORK,
+            category = editingNote?.category ?: selectedCategory ?: CategoryType("CUSTOM", "Custom", Icons.Default.Label, CategoryType.generateRandomColor()),
             existingNote = editingNote,
             onDismiss = {
                 editingNote = null
@@ -68,8 +69,8 @@ fun NotesScreen(viewModel: TaskViewModel) {
                 } else {
                     viewModel.addNote(title, content, category, photoPath, scannedText, imageUris, pdfUris)
                 }
-
-            }
+            },
+            viewModel = viewModel
         )
     } else {
         Box(
@@ -97,7 +98,8 @@ fun NotesScreen(viewModel: TaskViewModel) {
                     )
                     CategoryFilterDropdown(
                         selectedCategory = selectedCategory,
-                        onCategorySelected = { selectedCategory = it }
+                        onCategorySelected = { selectedCategory = it },
+                        viewModel = viewModel
                     )
                 }
                 LazyColumn(
@@ -176,9 +178,12 @@ fun DeleteConfirmationDialog(
 @Composable
 fun CategoryFilterDropdown(
     selectedCategory: CategoryType?,
-    onCategorySelected: (CategoryType?) -> Unit
+    onCategorySelected: (CategoryType?) -> Unit,
+    viewModel: TaskViewModel
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    val customCategories by viewModel.customCategories.collectAsState(initial = emptyList())
     val smallerTextStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
 
     ExposedDropdownMenuBox(
@@ -192,7 +197,13 @@ fun CategoryFilterDropdown(
             onValueChange = { },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             leadingIcon = selectedCategory?.let {
-                { Icon(it.icon, contentDescription = null, tint = VibrantBlue, modifier = Modifier.size(20.dp)) }
+                {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(color = Color(it.color), shape = CircleShape)
+                    )
+                }
             },
             colors = ExposedDropdownMenuDefaults.textFieldColors(),
             modifier = Modifier
@@ -204,6 +215,7 @@ fun CategoryFilterDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            // All Categories option
             DropdownMenuItem(
                 text = { Text("All Categories", style = smallerTextStyle) },
                 onClick = {
@@ -219,7 +231,29 @@ fun CategoryFilterDropdown(
                     )
                 }
             )
-            CategoryType.values().forEach { category ->
+
+            // Add New Category option
+            DropdownMenuItem(
+                text = { Text("+ New Category", style = smallerTextStyle) },
+                onClick = {
+                    expanded = false
+                    showAddCategoryDialog = true
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        tint = VibrantBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
+
+            // Divider between actions and categories
+            Divider()
+
+            // Custom categories
+            customCategories.forEach { category ->
                 DropdownMenuItem(
                     text = { Text(category.displayName, style = smallerTextStyle) },
                     onClick = {
@@ -227,17 +261,74 @@ fun CategoryFilterDropdown(
                         expanded = false
                     },
                     leadingIcon = {
-                        Icon(
-                            category.icon,
-                            contentDescription = null,
-                            tint = VibrantBlue,
-                            modifier = Modifier.size(20.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(color = Color(category.color), shape = CircleShape)
                         )
                     }
                 )
             }
         }
     }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onCategoryAdded = { categoryName ->
+                viewModel.addCustomCategory(categoryName)
+                showAddCategoryDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun AddCategoryDialog(
+    onDismiss: () -> Unit,
+    onCategoryAdded: (String) -> Unit
+) {
+    var categoryName by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add New Category") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = categoryName,
+                    onValueChange = { 
+                        categoryName = it
+                        showError = false
+                    },
+                    label = { Text("Category Name") },
+                    isError = showError,
+                    supportingText = if (showError) {
+                        { Text("Category name cannot be empty") }
+                    } else null
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (categoryName.isBlank()) {
+                        showError = true
+                    } else {
+                        onCategoryAdded(categoryName)
+                    }
+                }
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
@@ -262,10 +353,10 @@ fun NoteItem(note: Note, onNoteClicked: (Note) -> Unit, onDeleteNote: (Note) -> 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        note.category.icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(color = Color(note.category.color), shape = CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(

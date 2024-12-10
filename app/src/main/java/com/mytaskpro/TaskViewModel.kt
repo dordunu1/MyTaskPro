@@ -1744,6 +1744,17 @@ class TaskViewModel @Inject constructor(
             }
         }
     }
+
+    fun addCustomCategory(name: String) {
+        viewModelScope.launch {
+            val newCategory = CustomCategory(
+                type = "CUSTOM_${name.uppercase()}",
+                displayName = name,
+                color = CategoryType.generateRandomColor()
+            )
+            customCategoryDao.insertCustomCategory(newCategory)
+        }
+    }
 }
 
 
